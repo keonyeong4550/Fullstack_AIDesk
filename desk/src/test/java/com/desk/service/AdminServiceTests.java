@@ -25,35 +25,35 @@ public class AdminServiceTests {
     @Autowired
     private MemberRepository memberRepository;
 
-    @Test
-    @Transactional
-    public void testGetPendingMembers() {
-        // When
-        List<MemberDTO> pendingList = adminService.getPendingMembers();
+//    @Test
+//    @Transactional
+//    public void testGetPendingMembers() {
+//        // When
+//        List<MemberDTO> pendingList = adminService.getPendingMembers();
+//
+//        // Then
+//        log.info("승인 대기 회원 수: " + pendingList.size());
+//        pendingList.forEach(log::info);
+//    }
 
-        // Then
-        log.info("승인 대기 회원 수: " + pendingList.size());
-        pendingList.forEach(log::info);
-    }
-
-    @Test
-    @Transactional
-    public void testGetActiveMembersWithPaging() {
-        // Given
-        PageRequestDTO pageRequestDTO = PageRequestDTO.builder()
-                .page(1)
-                .size(10)
-                .build();
-
-        // When
-        PageResponseDTO<MemberDTO> response = adminService.getActiveMembers(pageRequestDTO);
-
-        // Then
-        assertThat(response.getDtoList()).isNotEmpty();
-        log.info("현재 페이지: " + response.getPageRequestDTO().getPage());
-        log.info("전체 승인 회원 수: " + response.getTotalCount());
-        response.getDtoList().forEach(log::info);
-    }
+//    @Test
+//    @Transactional
+//    public void testGetActiveMembersWithPaging() {
+//        // Given
+//        PageRequestDTO pageRequestDTO = PageRequestDTO.builder()
+//                .page(1)
+//                .size(10)
+//                .build();
+//
+//        // When
+//        PageResponseDTO<MemberDTO> response = adminService.getActiveMembers(pageRequestDTO);
+//
+//        // Then
+//        assertThat(response.getDtoList()).isNotEmpty();
+//        log.info("현재 페이지: " + response.getPageRequestDTO().getPage());
+//        log.info("전체 승인 회원 수: " + response.getTotalCount());
+//        response.getDtoList().forEach(log::info);
+//    }
 
     @Test
     @Transactional

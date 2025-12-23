@@ -11,7 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@ToString(exclude = "memberRoleList")
+@ToString(exclude = "roleList")
 public class Member {
 
     @Id
@@ -31,9 +31,16 @@ public class Member {
     @Builder.Default
     private boolean isApproved = false; // 승인 여부 (소셜 로그인이 아니면 기본 false)
 
+
     @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "member_role",
+            joinColumns = @JoinColumn(name = "member_email")
+    )
+    @Column(name = "role")
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private List<MemberRole> roleList = new ArrayList<>();
+    private List<MemberRole> roleList = new ArrayList<>(); // List로 변경
 
     public void addRole(MemberRole memberRole){
         roleList.add(memberRole);
