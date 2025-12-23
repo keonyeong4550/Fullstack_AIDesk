@@ -29,7 +29,7 @@ public class TicketSentListDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime deadline;
 
-    private String writer;
+    private String writer; //email
 
     @Builder.Default
     private List<TicketStateDTO> personals = new ArrayList<>();

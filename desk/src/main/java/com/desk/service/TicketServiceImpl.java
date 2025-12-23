@@ -1,8 +1,10 @@
 package com.desk.service;
 
+import com.desk.domain.Member;
 import com.desk.domain.Ticket;
 import com.desk.domain.TicketPersonal;
 import com.desk.dto.*;
+import com.desk.repository.MemberRepository;
 import com.desk.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -17,9 +19,13 @@ import java.util.stream.Collectors;
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
+    private final MemberRepository memberRepository;
 
     @Override
     public TicketSentListDTO create(TicketCreateDTO req, String writer) {
+        // writer email로 Member 조회
+        Member writerMember = memberRepository.findById(writer)
+                .orElseThrow(() -> new IllegalArgumentException("Writer not found: " + writer));
 
         Ticket ticket = Ticket.builder()
                 .title(req.getTitle())
@@ -28,13 +34,16 @@ public class TicketServiceImpl implements TicketService {
                 .requirement(req.getRequirement())
                 .grade(req.getGrade())
                 .deadline(req.getDeadline())
-                .writer(writer)
+                .writer(writerMember)
                 .build();
 
         // 수신인마다 TicketPersonal 1개씩 생성해서 연결
-        for (String r : req.getReceivers()) {
+        for (String receiverEmail : req.getReceivers()) {
+            Member receiverMember = memberRepository.findById(receiverEmail)
+                    .orElseThrow(() -> new IllegalArgumentException("Receiver not found: " + receiverEmail));
+            
             TicketPersonal tp = TicketPersonal.builder()
-                    .receiver(r)
+                    .receiver(receiverMember)
                     .build();
             ticket.addPersonal(tp); // setTicket(this)까지 같이 처리
         }
@@ -59,7 +68,7 @@ public class TicketServiceImpl implements TicketService {
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + tno));
 
         // 보낸 사람 검증
-        if (!writer.equals(ticket.getWriter())) {
+        if (!writer.equals(ticket.getWriter().getEmail())) {
             throw new IllegalArgumentException("Not allowed to read this ticket.");
         }
 
@@ -71,7 +80,7 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = ticketRepository.findById(tno)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + tno));
 
-        if (!writer.equals(ticket.getWriter())) {
+        if (!writer.equals(ticket.getWriter().getEmail())) {
             throw new IllegalArgumentException("Not allowed to delete this ticket.");
         }
 
@@ -89,12 +98,12 @@ public class TicketServiceImpl implements TicketService {
                 .grade(t.getGrade())
                 .birth(t.getBirth())
                 .deadline(t.getDeadline())
-                .writer(t.getWriter())
+                .writer(t.getWriter().getEmail())
                 .personals(
                         t.getPersonalList().stream()
                                 .map(p -> TicketStateDTO.builder()
                                         .pno(p.getPno())
-                                        .receiver(p.getReceiver())
+                                        .receiver(p.getReceiver().getEmail())
                                         .isread(p.isIsread())
                                         .state(p.getState())
                                         .build())

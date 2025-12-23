@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.support.PageableExecutionUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +27,7 @@ public class TicketRepositoryImpl {
 
         // 동적쿼리 조건 붙이는 빌더
         BooleanBuilder builder = new BooleanBuilder();
-        builder.and(ticket.writer.eq(writer));
+        builder.and(ticket.writer.email.eq(writer));
 
         // TicketFilterDTO 있으면 필터링
         if (filter != null) {

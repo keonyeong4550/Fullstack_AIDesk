@@ -32,7 +32,9 @@ public class Ticket {
     private LocalDateTime birth;
     private LocalDateTime deadline;
 
-    private String writer; // 추후 member table과 연결
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "writer_email", referencedColumnName = "email")
+    private Member writer; // Member의 email을 외래키로 사용
 
     // 동일 티켓을 여러 사람이 수신 가능(참조...)
     // 각 수신인마다 읽었는지, 진행상태 어떤지가 다르므로 --> TicketPersonal로

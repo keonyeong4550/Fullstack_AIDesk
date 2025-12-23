@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface TicketPersonalRepository extends JpaRepository<TicketPersonal, Long> {
 
     // Tno와 받은 이를 가지고 pno를 찾는 쿼리
-    @Query("select tp.pno from TicketPersonal tp where tp.receiver = :receiver and tp.ticket.tno = :tno")
+    @Query("select tp.pno from TicketPersonal tp where tp.receiver.email = :receiver and tp.ticket.tno = :tno")
     Optional<Long> findPnoByReceiverAndTno(@Param("receiver") String receiver, @Param("tno") Long tno);
     
     // 삭제 검증용 (테스트)

@@ -43,7 +43,7 @@ public class PersonalTicketServiceImpl implements PersonalTicketService {
         TicketPersonal tp = ticketPersonalRepository.findWithTicketByPno(tpno)
                 .orElseThrow(() -> new IllegalArgumentException("Inbox not found: " + tpno));
 
-        if (!receiver.equals(tp.getReceiver())) {
+        if (!receiver.equals(tp.getReceiver().getEmail())) {
             throw new IllegalArgumentException("Not allowed to read this inbox ticket.");
         }
 
@@ -76,7 +76,7 @@ public class PersonalTicketServiceImpl implements PersonalTicketService {
         TicketPersonal tp = ticketPersonalRepository.findWithTicketByPno(tpno)
                 .orElseThrow(() -> new IllegalArgumentException("Inbox not found: " + tpno));
 
-        if (!receiver.equals(tp.getReceiver())) {
+        if (!receiver.equals(tp.getReceiver().getEmail())) {
             throw new IllegalArgumentException("Not allowed to change state.");
         }
 
@@ -90,7 +90,7 @@ public class PersonalTicketServiceImpl implements PersonalTicketService {
         Ticket t = tp.getTicket();
         return TicketReceivedListDTO.builder()
                 .pno(tp.getPno())
-                .receiver(tp.getReceiver())
+                .receiver(tp.getReceiver().getEmail())
                 .isread(tp.isIsread())
                 .state(tp.getState())
                 .tno(t.getTno())
@@ -101,7 +101,7 @@ public class PersonalTicketServiceImpl implements PersonalTicketService {
                 .grade(t.getGrade())
                 .birth(t.getBirth())
                 .deadline(t.getDeadline())
-                .writer(t.getWriter())
+                .writer(t.getWriter().getEmail())
                 .build();
     }
 }

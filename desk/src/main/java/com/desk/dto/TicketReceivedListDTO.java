@@ -15,7 +15,7 @@ public class TicketReceivedListDTO {
 
     // TicketPersonal (나에게 부여된 row)
     private Long pno;
-    private String receiver;
+    private String receiver; // email
     private boolean isread;
     private TicketState state;
 
@@ -33,5 +33,5 @@ public class TicketReceivedListDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime deadline;
 
-    private String writer;
+    private String writer; // email
 }

@@ -20,7 +20,9 @@ public class TicketPersonal {
     @JoinColumn(name = "tp_tno") // 외래키 매핑
     private Ticket ticket;
 
-    private String receiver; // 받는이 -> 추후 member 연결
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiver_email", referencedColumnName = "email")
+    private Member receiver; // Member의 email을 외래키로 사용
 
     @Builder.Default
     private boolean isread = false;
