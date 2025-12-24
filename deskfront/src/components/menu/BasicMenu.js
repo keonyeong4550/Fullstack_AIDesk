@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../../slices/loginSlice"; // 로그아웃 액션 (경로 확인 필요)
 import CommonModal from "../common/CommonModal"; // 공통 모달 임포트
 import useCustomLogin from "../../hooks/useCustomLogin";
+import useCustomPin from "../../hooks/useCustomPin"; // 찜 커스텀 훅 임포트
 
 const BasicMenu = () => {
   const loginState = useSelector((state) => state.loginSlice);
   const dispatch = useDispatch();
   const { moveToPath } = useCustomLogin();
+
+   // 찜 목록 초기화를 위한 함수 가져오기
+    const { resetPins } = useCustomPin();
 
   // 모달 상태 관리
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -26,8 +30,8 @@ const BasicMenu = () => {
 
   const handleConfirmLogout = () => {
     dispatch(logout()); // Redux 상태 및 쿠키 초기화
+    resetPins();           // 찜 목록 초기화 (추가된 핵심 로직)
     setIsLogoutModalOpen(false); // 모달 닫기
-    // alert("로그아웃 되었습니다.");
     moveToPath("/"); // 메인으로 이동
   };
 
@@ -88,7 +92,7 @@ const BasicMenu = () => {
           ) : (
             <div
               className="text-white text-sm m-1 rounded cursor-pointer font-bold hover:text-gray-200"
-              onClick={handleClickLogout} // Link 대신 클릭 이벤트 연결
+              onClick={handleClickLogout}
             >
               Logout
             </div>

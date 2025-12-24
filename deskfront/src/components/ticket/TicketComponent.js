@@ -1,7 +1,11 @@
 import React from 'react';
 import PageComponent from '../common/PageComponent';
+import useCustomPin from '../../hooks/useCustomPin'; // 커스텀 훅 임포트
 
 const TicketComponent = ({ ticketList, serverData, movePage, onRowClick}) => {
+
+  // 찜 기능에 필요한 상태와 함수 가져오기
+    const { togglePin, isPinned } = useCustomPin();
 
     const getStateBadge = (state) => {
         const styles = {
@@ -27,6 +31,7 @@ const TicketComponent = ({ ticketList, serverData, movePage, onRowClick}) => {
             <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-800 text-white text-xs">
                     <tr>
+                        <th className="p-4 w-12 text-center">📌</th> {/* 찜 컬럼 헤더 추가 */}
                         <th className="p-4">중요도</th>
                         <th className="p-4">제목</th>
                         <th className="p-4">요청자</th>
@@ -45,12 +50,27 @@ const TicketComponent = ({ ticketList, serverData, movePage, onRowClick}) => {
                             ? ticket.personals[0].state
                             : ticket.state || 'NEW';
 
-                        return (
-                            <tr
+                       // 현재 티켓이 찜 상태인지 확인
+                       const pinned = isPinned(ticket.tno);
+
+                       return (
+                           <tr
                                 key={ticket.tno || ticket.pno}
                                 className="hover:bg-gray-50 transition-colors"
                                 onClick={() => onRowClick?.(ticket.tno)}
-                            >
+                                >
+                               {/*  찜 버튼 셀 추가 */}
+                               <td className="p-4 text-center">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // 이벤트 버블링 방지
+                                        togglePin(ticket.tno);
+                                      }}
+                                      className={`text-xl transition-all hover:scale-125 ${pinned ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-200'}`}
+                                    >
+                                      {pinned ? '★' : '☆'}
+                                    </button>
+                               </td>
                                 <td className="p-4">{getGradeText(ticket.grade)}</td>
                                 <td className="p-4 font-bold text-gray-800">{ticket.title}</td>
                                 <td className="p-4 text-gray-500">{ticket.writer}</td>
