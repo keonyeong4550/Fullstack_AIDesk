@@ -55,7 +55,14 @@ public class TicketServiceImpl implements TicketService {
                     .build();
             ticket.addPersonal(tp); // setTicket(this)까지 같이 처리
         }
+        // 건영 S
+        // 2) 업로드 파일명 연결 (ElementCollection documentList)
+        List<UploadTicketFile> uploadFiles = fileUtil.saveFiles(files);
 
+        if (uploadFiles != null) {
+            uploadFiles.forEach(ticket::addDocument); // ✅ 여기!
+        }
+        // 건영 E
         Ticket saved = ticketRepository.save(ticket);
         return toSentDetailDTO(saved);
     }

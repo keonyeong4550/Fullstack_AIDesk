@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.*;
 import org.springframework.test.annotation.Rollback;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -89,8 +90,10 @@ class TicketServiceTests {
                 .receivers(createdReceiverEmails)   // ★ 이메일 리스트
                 .build();
 
+        List<MultipartFile> files = List.of();
+
         // when
-        TicketSentListDTO created = ticketService.create(req, createdWriterEmail); // ★ 이메일
+        TicketSentListDTO created = ticketService.create(req, createdWriterEmail, files); // ★ 이메일
 
         // then
         assertNotNull(created, "create 결과 DTO가 null이면 안 됩니다.");
