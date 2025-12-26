@@ -81,10 +81,10 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-lg p-8 shadow-xl"
+          className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-lg">로딩 중...</div>
+          <div className="text-lg font-black text-gray-900 uppercase tracking-wide">로딩 중...</div>
         </div>
       </div>
     );
@@ -102,20 +102,20 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-[80%] max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between p-6 bg-gray-900 text-white">
           <div className="flex items-center flex-1">
             <button
               onClick={onClose}
-              className="mr-4 text-gray-600 hover:text-gray-900 text-xl font-bold"
+              className="mr-4 text-white hover:text-gray-300 text-xl font-black transition-all"
               aria-label="닫기"
             >
               ←
             </button>
-            <h2 className="text-2xl font-bold text-gray-800 flex-1">
+            <h2 className="text-xl font-black italic uppercase tracking-wider text-white flex-1">
               {ticket.title}
             </h2>
             {ticket.grade && (
@@ -142,38 +142,38 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
             {/* 좌측 메인 영역 */}
             <div className="col-span-2 space-y-6">
               {/* 요청 요약 */}
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                   요청 요약
                 </h3>
-                <p className="text-gray-700 whitespace-pre-wrap">
+                <p className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">
                   {ticket.content || "내용이 없습니다."}
                 </p>
               </div>
 
               {/* 요청 배경/목적 */}
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                   요청 배경/목적
                 </h3>
-                <p className="text-gray-700 whitespace-pre-wrap">
+                <p className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">
                   {ticket.purpose || "내용이 없습니다."}
                 </p>
               </div>
 
               {/* 요구사항 */}
               {requirements.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                     요구사항
                   </h3>
                   <ul className="space-y-2">
                     {requirements.map((req, index) => (
                       <li key={index} className="flex items-start">
-                        <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mr-3 min-w-[2rem] text-center">
+                        <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-black mr-4 min-w-[2.5rem] text-center shadow-sm">
                           {index + 1}
                         </span>
-                        <span className="text-gray-700 flex-1 pt-1">
+                        <span className="text-gray-800 flex-1 pt-1 font-bold leading-relaxed">
                           {req}
                         </span>
                       </li>
@@ -184,28 +184,28 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
 
               {/* 수신자 목록 (보낸 티켓만) */}
               {isSentType && ticket.personals && ticket.personals.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                     수신자 목록
                   </h3>
                   <div className="space-y-2">
                     {ticket.personals.map((personal, index) => (
                       <div
                         key={personal.pno || index}
-                        className="flex items-center justify-between p-3 bg-white rounded border border-gray-200"
+                        className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-200 shadow-sm"
                       >
                         <div className="flex items-center space-x-3">
-                          <span className="text-gray-700 font-medium">
+                          <span className="text-gray-800 font-bold">
                             {personal.receiver || "-"}
                           </span>
                           {personal.isread && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                            <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-black">
                               읽음
                             </span>
                           )}
                         </div>
                         <span
-                          className={`px-3 py-1 rounded text-sm font-medium ${
+                          className={`px-4 py-2 rounded-xl text-sm font-black ${
                             personal.state === "DONE"
                               ? "bg-green-100 text-green-800"
                               : personal.state === "IN_PROGRESS"
@@ -224,11 +224,11 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
               )}
 
               {/* 첨부 파일 */}
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
+              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                   첨부 파일
                 </h3>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-600 text-sm font-medium">
                   첨부 파일 기능은 추후 구현 예정입니다.
                 </p>
               </div>
@@ -237,51 +237,51 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
             {/* 우측 사이드 영역 */}
             <div className="col-span-1 space-y-6">
               {/* 세부 정보 */}
-              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                   세부 정보
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-20 flex-shrink-0">
+                    <span className="text-gray-600 w-24 flex-shrink-0 font-bold text-sm uppercase tracking-wide">
                       {isReceivedType ? "요청자" : "작성자"}
                     </span>
-                    <span className="text-gray-800 font-medium">
+                    <span className="text-gray-900 font-black">
                       {ticket.writer || "-"}
                     </span>
                   </div>
                   {isReceivedType && (
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-20 flex-shrink-0">
+                      <span className="text-gray-600 w-24 flex-shrink-0 font-bold text-sm uppercase tracking-wide">
                         담당자
                       </span>
-                      <span className="text-gray-800 font-medium">
+                      <span className="text-gray-900 font-black">
                         {ticket.receiver || "-"}
                       </span>
                     </div>
                   )}
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-20 flex-shrink-0">
+                    <span className="text-gray-600 w-24 flex-shrink-0 font-bold text-sm uppercase tracking-wide">
                       생성일
                     </span>
-                    <span className="text-gray-800 font-medium">
+                    <span className="text-gray-900 font-black">
                       {formatDate(ticket.birth)}
                     </span>
                   </div>
                   <div className="flex items-center">
-                    <span className="text-gray-500 w-20 flex-shrink-0">
+                    <span className="text-gray-600 w-24 flex-shrink-0 font-bold text-sm uppercase tracking-wide">
                       마감일
                     </span>
-                    <span className="text-gray-800 font-medium">
+                    <span className="text-red-600 font-black">
                       {formatDate(ticket.deadline)}
                     </span>
                   </div>
                   {isSentType && (
                     <div className="flex items-center">
-                      <span className="text-gray-500 w-20 flex-shrink-0">
+                      <span className="text-gray-600 w-24 flex-shrink-0 font-bold text-sm uppercase tracking-wide">
                         수신자 수
                       </span>
-                      <span className="text-gray-800 font-medium">
+                      <span className="text-gray-900 font-black">
                         {ticket.personals?.length || 0}명
                       </span>
                     </div>
@@ -291,18 +291,18 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
 
               {/* 상태 (받은 티켓만) */}
               {isReceivedType && (
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">
                     상태
                   </h3>
                   <select
                     value={ticket.state || "NEW"}
                     onChange={(e) => handleStateChange(e.target.value)}
                     disabled={!isReceiver}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-4 py-3 border-2 border-gray-200 rounded-2xl font-bold focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 ${
                       !isReceiver
                         ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                        : "bg-white text-gray-800 cursor-pointer"
+                        : "bg-white text-gray-900 cursor-pointer"
                     }`}
                   >
                     <option value="NEW">신규</option>
@@ -318,7 +318,7 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
                 <div className="pt-4">
                   <button
                     onClick={handleDelete}
-                    className="text-red-600 hover:text-red-800 text-sm font-medium underline"
+                    className="bg-red-600 text-white px-8 py-3 rounded-2xl font-black hover:bg-red-700 transition-all shadow-lg w-full"
                   >
                     (보낸사람) 삭제
                   </button>
