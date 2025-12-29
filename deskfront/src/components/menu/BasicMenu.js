@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../../slices/loginSlice"; // 로그아웃 액션 (경로 확인 필요)
-import CommonModal from "../common/CommonModal"; // 공통 모달 임포트
+import { logout } from "../../slices/loginSlice";
+import CommonModal from "../common/CommonModal";
 import useCustomLogin from "../../hooks/useCustomLogin";
+import AIChatWidget from "./AIChatWidget"; // [NEW] AI 위젯 임포트
 
 const BasicMenu = () => {
   const loginState = useSelector((state) => state.loginSlice);
@@ -13,28 +14,31 @@ const BasicMenu = () => {
   // 모달 상태 관리
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
+  // [NEW] AI 위젯 모달 상태
+  const [isAIWidgetOpen, setIsAIWidgetOpen] = useState(false);
+
   // 관리자 권한 확인
   const isAdmin =
     loginState.roleNames && loginState.roleNames.includes("ADMIN");
 
   // 로그아웃 버튼 클릭 핸들러
   const handleClickLogout = () => {
-    setIsLogoutModalOpen(true); // 모달 열기
+    setIsLogoutModalOpen(true);
   };
-
-  // 모달 확인(Yes) 버튼 핸들러 -> 실제 로그아웃 수행
 
   const handleConfirmLogout = () => {
-    dispatch(logout()); // Redux 상태 및 쿠키 초기화
-    setIsLogoutModalOpen(false); // 모달 닫기
-    // alert("로그아웃 되었습니다.");
-    moveToPath("/"); // 메인으로 이동
+    dispatch(logout());
+    setIsLogoutModalOpen(false);
+    moveToPath("/");
   };
 
-  // 모달 취소/닫기 핸들러
   const handleCloseModal = () => {
     setIsLogoutModalOpen(false);
   };
+
+  // [NEW] AI 위젯 열기/닫기 핸들러
+  const openAIWidget = () => setIsAIWidgetOpen(true);
+  const closeAIWidget = () => setIsAIWidgetOpen(false);
 
   return (
     <>
@@ -44,14 +48,17 @@ const BasicMenu = () => {
           isOpen={isLogoutModalOpen}
           title={"Logout Check"}
           content={"정말 로그아웃 하시겠습니까?"}
-          callbackFn={handleConfirmLogout} // 확인 시 실행
-          closeFn={handleCloseModal} // 취소 시 실행
+          callbackFn={handleConfirmLogout}
+          closeFn={handleCloseModal}
         />
       )}
 
+      {/* --- [NEW] AI 업무 비서 위젯 모달 --- */}
+      {isAIWidgetOpen && <AIChatWidget onClose={closeAIWidget} />}
+
       <nav id="navbar" className="flex bg-blue-300">
         <div className="w-4/5 bg-gray-500">
-          <ul className="flex p-4 text-white font-bold">
+          <ul className="flex p-4 text-white font-bold items-center">
             <li className="pr-6 text-2xl">
               <Link to={"/"}>Main</Link>
             </li>
@@ -66,6 +73,17 @@ const BasicMenu = () => {
                 </li>
                 <li className="pr-6 text-2xl">
                   <Link to={"/tickets/"}>tickets</Link>
+                </li>
+
+                {/* [NEW] AI 업무 비서 버튼 (로그인 시에만 노출) */}
+                <li className="pr-6">
+                  <button
+                    onClick={openAIWidget}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full flex items-center gap-2 transition-colors shadow-lg"
+                  >
+                    <span>🤖</span>
+                    <span>AI 업무 비서</span>
+                  </button>
                 </li>
 
                 {isAdmin && (
@@ -88,7 +106,7 @@ const BasicMenu = () => {
           ) : (
             <div
               className="text-white text-sm m-1 rounded cursor-pointer font-bold hover:text-gray-200"
-              onClick={handleClickLogout} // Link 대신 클릭 이벤트 연결
+              onClick={handleClickLogout}
             >
               Logout
             </div>
