@@ -194,29 +194,101 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public List<FileItemDTO> getTicketFiles(Long tno) {
-
         Ticket ticket = ticketRepository.findById(tno)
                 .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + tno));
 
         List<UploadTicketFile> files = ticket.getDocumentList();
-        if (files == null || files.isEmpty()) {
-            return List.of();
-        }
+        if (files == null || files.isEmpty()) return List.of();
 
         return files.stream()
                 .sorted(Comparator.comparingInt(UploadTicketFile::getOrd))
-                .map(f -> FileItemDTO.builder()
-                        .ord(f.getOrd())
-                        .originalName(f.getOriginalName())
-                        .ext(f.getExt())
-                        .size(f.getSize())
-                        .image(f.isImage())
-                        .savedName(f.getSavedName())                 // 프론트에서 필요 없으면 빼도 됨
-                        .viewUrl(fileUtil.makeViewUrl(f.getSavedName()))
-                        .previewUrl(fileUtil.makePreviewUrl(f))
-                        .build()
-                )
+                .map(f -> {
+                    // ✅ 여기서 파일명을 조합합니다.
+                    String savedName = f.getLink();
+
+                    return FileItemDTO.builder()
+                            .ord(f.getOrd())
+                            .uuid(f.getUuid())
+                            .originalName(f.getOriginalName())
+                            .ext(f.getExt())
+                            .size(f.getSize())
+                            .image(f.isImage())
+                            .savedName(savedName) // DTO에는 프론트엔드를 위해 넣어줌
+                            .viewUrl(fileUtil.makeViewUrl(savedName))
+                            .previewUrl(fileUtil.makePreviewUrl(f))
+                            .downloadUrl(fileUtil.makeDownloadUrl(savedName))
+                            .build();
+                })
                 .toList();
+    }
+    // [NEW] 개별 파일 삭제 로직
+    @Override
+    public void removeFile(Long tno, String uuid, String writerEmail) {
+        // 1. 티켓 조회
+        Ticket ticket = ticketRepository.findById(tno)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + tno));
+
+        // 2. 권한 체크 (작성자만 파일을 삭제할 수 있다고 가정)
+        if (!ticket.getWriter().getEmail().equals(writerEmail)) {
+            throw new IllegalArgumentException("No permission to delete file.");
+        }
+
+        // 3. 리스트에서 해당 파일 찾기
+        List<UploadTicketFile> files = ticket.getDocumentList();
+        UploadTicketFile targetFile = null;
+
+        for (UploadTicketFile f : files) {
+            if (f.getUuid().equals(uuid)) {
+                targetFile = f;
+                break;
+            }
+        }
+
+        if (targetFile != null) {
+            // 4. 물리 파일 삭제
+            fileUtil.deleteFile(targetFile.getLink(), targetFile.isImage());
+
+            files.remove(targetFile);
+        } else {
+            throw new IllegalArgumentException("File not found in ticket.");
+        }
+    }
+    // [NEW] 내 파일 전체 목록 조회 구현
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<FileItemDTO> listUserFiles(String email, PageRequestDTO pageRequestDTO) {
+
+        Pageable pageable = PageRequest.of(pageRequestDTO.getPage() - 1, pageRequestDTO.getSize());
+
+        // Repository 변경에 맞춤
+        Page<UploadTicketFile> result = ticketRepository.findAllFilesByUser(email, pageable);
+
+        // UploadTicketFile 객체 -> FileItemDTO 변환
+        List<FileItemDTO> dtoList = result.getContent().stream().map(f -> {
+
+            // 저장된 이름 만들기 (DB에 없으므로 조립)
+            String savedName = f.getLink();
+            // ※ 만약 getLink() 빨간줄 뜨면: f.getUuid() + "_" + f.getOriginalName(); 으로 쓰세요.
+
+            return FileItemDTO.builder()
+                    .ord(f.getOrd())
+                    .uuid(f.getUuid())
+                    .originalName(f.getOriginalName())
+                    .ext(f.getExt())
+                    .size(f.getSize())
+                    .image(f.isImage())
+                    .savedName(savedName)
+                    .viewUrl(fileUtil.makeViewUrl(savedName))
+                    .previewUrl(fileUtil.makePreviewUrl(f))
+                    .downloadUrl(fileUtil.makeDownloadUrl(savedName))
+                    .build();
+        }).collect(Collectors.toList());
+
+        return PageResponseDTO.<FileItemDTO>withAll()
+                .dtoList(dtoList)
+                .pageRequestDTO(pageRequestDTO)
+                .totalCount(result.getTotalElements())
+                .build();
     }
 
 }

@@ -25,4 +25,9 @@ public interface TicketService {
     TicketCreateDTO get(Long tno);
 
     List<FileItemDTO> getTicketFiles(Long tno);
+
+    // [NEW] 티켓 내 특정 파일 1개 삭제
+    void removeFile(Long tno, String uuid, String writerEmail);
+    // [NEW] 내 파일 전체 목록 조회
+    PageResponseDTO<FileItemDTO> listUserFiles(String writer, PageRequestDTO pageRequestDTO);
 }

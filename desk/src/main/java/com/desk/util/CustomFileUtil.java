@@ -8,6 +8,7 @@ import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -93,7 +94,7 @@ public class CustomFileUtil {
                         .uuid(uuid)
                         .originalName(originalName)
                         .ext(ext)
-                        .savedName(savedName)
+
                         .size(multipartFile.getSize())
                         .image(isImage)
                         .build();
@@ -107,6 +108,67 @@ public class CustomFileUtil {
 
         return result;
     }
+
+    // [NEW] 파일 다운로드 처리 (강제 다운로드 헤더 설정)
+    public ResponseEntity<Resource> downloadFile(String savedName) {
+        Resource resource = new FileSystemResource(uploadPath + File.separator + savedName);
+
+        if (!resource.exists()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // savedName에서 uuid_ 제거하고 순수 파일명 추출
+        String originalName = savedName.substring(savedName.indexOf("_") + 1);
+
+        HttpHeaders headers = new HttpHeaders();
+        try {
+            // 한글 파일명 깨짐 방지 인코딩
+            String encodedFileName = URLEncoder.encode(originalName, StandardCharsets.UTF_8)
+                    .replaceAll("\\+", "%20");
+
+            headers.setContentDisposition(ContentDisposition.builder("attachment")
+                    .filename(encodedFileName, StandardCharsets.UTF_8)
+                    .build());
+
+            headers.add(HttpHeaders.CONTENT_TYPE, Files.probeContentType(resource.getFile().toPath()));
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+
+        return ResponseEntity.ok().headers(headers).body(resource);
+    }
+
+    // [NEW] 일반 파일 조회 (View/Image Src용)
+    public ResponseEntity<Resource> getFile(String fileName) {
+        Resource resource = new FileSystemResource(uploadPath + File.separator + fileName);
+
+        if (!resource.exists()) {
+            // 기본 이미지 처리 (없으면 404)
+            return ResponseEntity.notFound().build();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        try {
+            headers.add("Content-Type", Files.probeContentType(resource.getFile().toPath()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+        return ResponseEntity.ok().headers(headers).body(resource);
+    }
+
+    // [NEW] 단일 파일 삭제
+    public void deleteFile(String savedName, boolean isImage) {
+        Path filePath = Paths.get(uploadPath, savedName);
+        deleteIfExists(filePath);
+
+        if (isImage) {
+            Path thumbPath = Paths.get(uploadPath, "s_" + savedName);
+            deleteIfExists(thumbPath);
+        }
+    }
+
+
     public ResponseEntity<Resource> getThumbnailFile(String savedName) {
 
         if (savedName == null || savedName.isBlank()) {
@@ -172,24 +234,6 @@ public class CustomFileUtil {
     }
 
 
-    // 파일 데이터를 읽어서 스프리엥서 제공하는 Resource 타입으로 변환하는 메서드
-    public ResponseEntity<Resource> getFile(String fileName){
-        Resource resource = new FileSystemResource(uploadPath + File.separator + fileName);
-
-        if( !resource.isReadable()){
-            resource = new FileSystemResource(uploadPath + File.separator + "winter.jpg");
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-
-        try{
-            headers.add("Content-Type", Files.probeContentType(resource.getFile().toPath()));
-        }catch(Exception e){
-            return ResponseEntity.internalServerError().build();
-        }
-        return ResponseEntity.ok().headers(headers).body(resource);
-    }
-
     public void deleteFiles(List<UploadTicketFile> files) {
 
         if (files == null || files.isEmpty()) return;
@@ -197,12 +241,12 @@ public class CustomFileUtil {
         for (UploadTicketFile file : files) {
 
             // 1️⃣ 원본 파일 삭제
-            Path filePath = Paths.get(uploadPath, file.getSavedName());
+            Path filePath = Paths.get(uploadPath, file.getLink());
             deleteIfExists(filePath);
 
             // 2️⃣ 썸네일 삭제 (이미지일 경우만)
             if (file.isImage()) {
-                Path thumbPath = Paths.get(uploadPath, "s_" + file.getSavedName());
+                Path thumbPath = Paths.get(uploadPath, "s_" + file.getLink());
                 deleteIfExists(thumbPath);
             }
         }
@@ -226,7 +270,7 @@ public class CustomFileUtil {
         if (f.isImage()) {
             // 썸네일 보여주는 엔드포인트가 이미 있다면 그걸 쓰고,
             // 없다면 view로도 이미지 출력은 가능해요(다만 목록에선 thumb가 더 좋아요)
-            return "/api/files/view/" + URLEncoder.encode("s_" + f.getSavedName(), StandardCharsets.UTF_8);
+            return "/api/files/view/" + URLEncoder.encode("s_" + f.getLink(), StandardCharsets.UTF_8);
         }
         // 문서 아이콘은 프론트 정적 리소스로 두는 걸 추천
         // 예: /assets/file-icons/pdf.png
@@ -235,5 +279,7 @@ public class CustomFileUtil {
         if (key.isBlank()) key = "file";
         return "/assets/file-icons/" + key + ".png";
     }
-
+    public String makeDownloadUrl(String savedName){
+        return "/api/files/download/" + savedName;
+    }
 }

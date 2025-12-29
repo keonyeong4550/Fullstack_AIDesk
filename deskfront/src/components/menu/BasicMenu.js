@@ -21,7 +21,8 @@ const BasicMenu = () => {
   const [isAIWidgetOpen, setIsAIWidgetOpen] = useState(false);
 
   // 관리자 권한 확인
-  const isAdmin = loginState.roleNames && loginState.roleNames.includes("ADMIN");
+  const isAdmin =
+    loginState.roleNames && loginState.roleNames.includes("ADMIN");
 
   // 로그아웃 버튼 클릭 핸들러
   const handleClickLogout = () => setIsLogoutModalOpen(true);
@@ -99,7 +100,10 @@ const BasicMenu = () => {
                 <Link to="/todo/" className={getMenuClass("/todo/")}>
                   할일목록
                 </Link>
-
+                {/* ✅ [NEW] 파일함 메뉴 추가 */}
+                <Link to="/files/" className={getMenuClass("/files")}>
+                  파일함
+                </Link>
                 {/* ✅ AI 업무 비서 버튼 (로그인 시에만 노출) */}
                 <button
                   type="button"

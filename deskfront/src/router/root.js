@@ -5,7 +5,7 @@ import ticketRouter from "./ticketRouter";
 import adminRouter from "./adminRouter";
 import boardRouter from "./boardRouter";
 import BoardIndex from "../pages/board/IndexPage";
-
+import fileBoxRouter from "./FileBoxRouter";
 
 const Loading = <div>Loading....</div>;
 
@@ -21,7 +21,7 @@ const root = createBrowserRouter([
         <Main />
       </Suspense>
     ),
-    },
+  },
   {
     path: "board",
     element: (
@@ -35,15 +35,15 @@ const root = createBrowserRouter([
     path: "member",
     children: memberRouter(),
   },
-   {
-      path: "tickets",
-      element: (
-        <Suspense fallback={Loading}>
-          <TicketIndex />
-        </Suspense>
-      ),
-      children: ticketRouter(),
-    },
+  {
+    path: "tickets",
+    element: (
+      <Suspense fallback={Loading}>
+        <TicketIndex />
+      </Suspense>
+    ),
+    children: ticketRouter(),
+  },
 
   {
     path: "admin",
@@ -53,6 +53,10 @@ const root = createBrowserRouter([
       </Suspense>
     ),
     children: adminRouter(),
+  },
+  {
+    path: "files",
+    children: fileBoxRouter(), // 라우터 연결
   },
 ]);
 

@@ -44,9 +44,9 @@ public class TicketController {
 
 
         // 1) 파일 저장
-        List<UploadTicketFile> uploadFileNames = fileUtil.saveFiles(files);
+//        List<UploadTicketFile> uploadFileNames = fileUtil.saveFiles(files);
         // 2) DTO에 파일명 세팅
-        req.setUploadFileNames(uploadFileNames);
+//        req.setUploadFileNames(uploadFileNames);
 
 
         // 생성 (수신자마다 생성됨)
@@ -110,4 +110,30 @@ public class TicketController {
         PageResponseDTO<TicketSentListDTO> response = ticketService.listAll(email, filter, pageRequestDTO);
         return ResponseEntity.ok(response);
     }
+
+    // [NEW] 티켓 내 개별 파일 삭제
+    // DELETE /api/tickets/{tno}/files/{uuid}?writer=이메일
+    @DeleteMapping("/{tno}/files/{uuid}")
+    public ResponseEntity<Void> removeFile(
+            @PathVariable Long tno,
+            @PathVariable String uuid,
+            @RequestParam String writer
+    ) {
+        log.info("[File Delete] 요청 | tno={} | uuid={} | 요청자={}", tno, uuid, writer);
+
+        ticketService.removeFile(tno, uuid, writer);
+
+        return ResponseEntity.noContent().build();
+    }
+    // [NEW] 내 파일 보관함(전체 파일 목록) 조회
+    @GetMapping("/files/all")
+    public ResponseEntity<PageResponseDTO<FileItemDTO>> listUserFiles(
+            @RequestParam("email") String email,
+            @ModelAttribute PageRequestDTO pageRequestDTO
+    ) {
+        log.info("[FileBox] 파일 목록 조회 요청 | 사용자={}", email);
+        PageResponseDTO<FileItemDTO> response = ticketService.listUserFiles(email, pageRequestDTO);
+        return ResponseEntity.ok(response);
+    }
+
 }

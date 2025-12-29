@@ -100,7 +100,7 @@ public class Ticket {
                 .uuid(uuid)
                 .originalName(originalName)
                 .ext(ext)
-                .savedName(savedName)
+                
                 .size(size)
                 .image(image)
                 .build();
