@@ -18,7 +18,7 @@ public class UploadTicketFile {
     private String savedName;     // 실제 저장된 파일명 (uuid + "_" + originalName 등)
     private long size;            // bytes
     private boolean image;        // 이미지 여부
- 
+
     private int ord;
 
     public void setOrd(int ord) {
