@@ -43,6 +43,18 @@ public class Ticket {
     @Builder.Default
     private List<TicketPersonal> personalList = new ArrayList<>();
 
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    @Builder.Default
+    private List<TicketFile> fileList = new ArrayList<>();
+
+    // Ticket ↔ TicketFile 양방향 연관관계를 동기화하여 FK와 컬렉션을 동시에 맞춘다
+    // DB를 위한 FK, JPA 동작을 위한 객체 관계, 둘은 별개라서 둘 다 맞춰야 한다.
+    public void addFile(TicketFile file) {
+        file.setTicket(this);
+        this.fileList.add(file);
+    }
+
     // 생성일 현재로
     @PrePersist
     public void prePersist() {

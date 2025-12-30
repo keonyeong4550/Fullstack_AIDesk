@@ -28,7 +28,7 @@ const BasicMenu = () => {
 
   const handleConfirmLogout = () => {
     dispatch(logout());
-    resetPins(); // ✅ 핀 상태 초기화(충돌 쪽 기능 유지)
+    resetPins(); // 핀 상태 초기화(충돌 쪽 기능 유지)
     setIsLogoutModalOpen(false);
     moveToPath("/");
   };
@@ -88,7 +88,7 @@ const BasicMenu = () => {
               대시보드
             </Link>
 
-            {loginState.email && (
+
               <>
                 <Link to="/tickets/" className={getMenuClass("/tickets/")}>
                   티켓
@@ -96,10 +96,12 @@ const BasicMenu = () => {
                 <Link to="/board" className={getMenuClass("/board")}>
                   공지사항
                 </Link>
-                <Link to="/todo/" className={getMenuClass("/todo/")}>
-                  할일목록
+                <Link to="/file/" className={getMenuClass("/file/")}>
+                  파일함
                 </Link>
-
+              </>
+                {loginState.email && (
+                <>
                 {/* ✅ AI 업무 비서 버튼 (로그인 시에만 노출) */}
                 <button
                   type="button"

@@ -33,4 +33,8 @@ public class TicketSentListDTO {
 
     @Builder.Default
     private List<TicketStateDTO> personals = new ArrayList<>();
+
+    //첨부 파일 목록
+    @Builder.Default
+    private List<TicketFileDTO> files = new ArrayList<>();
 }

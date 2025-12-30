@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Builder
@@ -34,4 +36,8 @@ public class TicketReceivedListDTO {
     private LocalDateTime deadline;
 
     private String writer; // email
+
+    // 첨부 파일 목록
+    @Builder.Default
+    private List<TicketFileDTO> files = new ArrayList<>();
 }

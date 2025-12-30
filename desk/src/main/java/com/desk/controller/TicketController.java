@@ -6,8 +6,12 @@ import com.desk.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.*;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -20,19 +24,23 @@ public class TicketController {
 
     // ---> /api/tickets 경로로 Post 요청하면 이리로...
     // 티켓 생성 ---> writer + 수신인 리스트로 Ticket 1건과 TicketPersonal N건 생성
-    @PostMapping
+    // consumes를 multipart/form-data로 명시, MULTIPART_FORM_DATA_VALUE = 텍스트 + 파일을 함께 보내기 위한 형식
+    // consumes - 요청(Request) 타입, produces - 응답(Response) 타입
+    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<TicketSentListDTO> create(
             // 쿼리스트링으로 writer 받아옴
             @RequestParam String writer,
             // 바디(JSON)을 DTO로 변환
-            @RequestBody TicketCreateDTO req
+            @RequestPart("ticket") TicketCreateDTO req,
+            // 파일 리스트는 @RequestPart("files")로 받음
+            @RequestPart(value = "files", required = false) List<MultipartFile> files
     ) {
         // 수신자 수 체크 ---> 수신자 null 이면 에러나므로 삼항연산자로 null 방어
         int receiverCount = (req.getReceivers() == null) ? 0 : req.getReceivers().size();
         log.info("[Ticket] 생성 요청 | 작성자={} | 수신자수={}", writer, receiverCount);
 
         // 생성 (수신자마다 생성됨)
-        TicketSentListDTO created = ticketService.create(req, writer);
+        TicketSentListDTO created = ticketService.createWithFiles(req, writer, files);
         log.info("[Ticket] 생성 완료 | 작성자={} | 티켓번호={}", writer, created.getTno());
 
         // HTTP 200 OK (이거도 나중에 수정해야 할 수도 있을 것 같아요 굳이 여기서 ok하지말고 exception으로 빼도될듯)

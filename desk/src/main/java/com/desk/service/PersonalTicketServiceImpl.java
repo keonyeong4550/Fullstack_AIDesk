@@ -3,16 +3,14 @@ package com.desk.service;
 import com.desk.domain.Ticket;
 import com.desk.domain.TicketPersonal;
 import com.desk.domain.TicketState;
-import com.desk.dto.PageRequestDTO;
-import com.desk.dto.PageResponseDTO;
-import com.desk.dto.TicketFilterDTO;
-import com.desk.dto.TicketReceivedListDTO;
+import com.desk.dto.*;
 import com.desk.repository.TicketPersonalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -115,6 +113,18 @@ public class PersonalTicketServiceImpl implements PersonalTicketService {
                 .birth(t.getBirth())
                 .deadline(t.getDeadline())
                 .writer(t.getWriter().getEmail())
+                .files(
+                        t.getFileList() != null ? t.getFileList().stream()
+                                .map(f -> TicketFileDTO.builder()
+                                        .uuid(f.getUuid())
+                                        .fileName(f.getFileName())
+                                        .fileSize(f.getFileSize())
+                                        .createdAt(f.getCreatedAt())
+                                        .writer(f.getWriter())
+                                        .receiver(f.getReceiver())
+                                        .build())
+                                .collect(Collectors.toList()) : new ArrayList<>()
+                )
                 .build();
     }
 }

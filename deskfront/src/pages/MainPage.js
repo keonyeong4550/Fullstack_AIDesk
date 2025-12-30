@@ -21,6 +21,7 @@ const MainPage = () => {
   const [selectedTno, setSelectedTno] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // 이메일 존재 여부로 로그인 확인
   const isLoggedIn = !!loginState.email;
   const email = loginState.email;
   const displayName = loginState.nickname || "사용자";
@@ -35,12 +36,35 @@ const MainPage = () => {
   };
 
   const fetchMainData = useCallback(() => {
-    getRecentBoards().then(data => setRecentBoards(data || []));
-    if (isLoggedIn) {
-      getRecentReceivedTickets(email).then(data => setRecentTasks(data || []));
-      getReceivedTickets(email, { size: 1 }, { read: false }).then(res => setUnreadCount(res.totalCount || 0));
-      getSentTickets(email, { size: 1 }, { state: 'IN_PROGRESS' }).then(res => setPendingSentCount(res.totalCount || 0));
+    // 1. 로그인이 되어 있지 않으면 모든 상태를 초기화하고 API를 호출하지 않음
+    if (!isLoggedIn) {
+      setRecentTasks([]);
+      setRecentBoards([]);
+      setUnreadCount(0);
+      setPendingSentCount(0);
+      return;
     }
+
+    // 2. 로그인 상태일 때만 API 호출 (catch를 추가하여 에러 발생 시 콘솔 오류 방지)
+    getRecentBoards()
+      .then(data => setRecentBoards(data || []))
+      .catch(err => console.error("공지사항 로드 실패:", err));
+
+    getRecentReceivedTickets(email)
+      .then(data => setRecentTasks(data || []))
+      .catch(err => {
+        console.error("최근 업무 로드 실패:", err);
+        setRecentTasks([]);
+      });
+
+    getReceivedTickets(email, { size: 1 }, { read: false })
+      .then(res => setUnreadCount(res.totalCount || 0))
+      .catch(() => setUnreadCount(0));
+
+    getSentTickets(email, { size: 1 }, { state: 'IN_PROGRESS' })
+      .then(res => setPendingSentCount(res.totalCount || 0))
+      .catch(() => setPendingSentCount(0));
+
   }, [isLoggedIn, email]);
 
   useEffect(() => {
@@ -48,6 +72,11 @@ const MainPage = () => {
   }, [fetchMainData]);
 
   const moveToListWithFilter = (tab, read = "ALL", state = "") => {
+    if (!isLoggedIn) {
+      alert("로그인이 필요한 서비스입니다.");
+      navigate("/member/login");
+      return;
+    }
     const params = new URLSearchParams();
     params.set("tab", tab);
     params.set("read", read);
@@ -62,33 +91,32 @@ const MainPage = () => {
 
   return (
     <BasicLayout>
-      {/* py-12와 space-y-8로 '중간' 크기의 여백 확보 */}
       <div className="max-w-7xl mx-auto px-6 py-12 space-y-8 bg-gray-50 min-h-[calc(100vh-80px)]">
 
-        {/* --- 상단 영역 (p-10으로 크기 상향) --- */}
         <section className="bg-indigo-600 rounded-2xl p-10 text-white shadow-lg relative overflow-hidden">
           <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-3">안녕하세요, {displayName}님</h1>
+            <h1 className="text-3xl font-bold mb-3">
+              {isLoggedIn ? `안녕하세요, ${displayName}님` : "로그인이 필요합니다"}
+            </h1>
             <p className="text-lg text-indigo-100 opacity-90">AI 챗봇과 대화하며 업무 요청을 정확하게 전달하세요.</p>
             <button
-              onClick={() => navigate("/tickets/add")}
+              onClick={() => isLoggedIn ? navigate("/tickets/add") : navigate("/member/login")}
               className="mt-6 bg-white text-indigo-600 px-7 py-2.5 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-md active:scale-95"
             >
-              + 새 업무 요청 만들기
+              {isLoggedIn ? "+ 새 업무 요청 만들기" : "로그인 하러 가기"}
             </button>
           </div>
           <div className="absolute top-[-20%] right-[-5%] w-72 h-72 bg-indigo-500 rounded-full opacity-20"></div>
           <div className="absolute bottom-[-15%] left-[30%] w-32 h-32 bg-indigo-400 rounded-full opacity-10"></div>
         </section>
 
-        {/* --- 상태 카드 영역 (p-8, text-4xl로 크기 상향) --- */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <StatusCard
             title="중요 업무 (PIN)"
-            count={pinItems.length}
+            count={isLoggedIn ? pinItems.length : 0}
             color="text-blue-500"
             icon="⭐"
-            onClick={() => window.dispatchEvent(new Event('open-pin-drawer'))}
+            onClick={() => isLoggedIn && window.dispatchEvent(new Event('open-pin-drawer'))}
           />
           <StatusCard
             title="읽지 않은 업무 (받은함)"
@@ -106,15 +134,15 @@ const MainPage = () => {
           />
         </section>
 
-        {/* --- 하단 리스트 영역 (min-h-[440px]로 밸런스 조정) --- */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
           {/* 최근 받은 업무 */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col min-h-[440px]">
             <h2 className="text-xl font-bold text-gray-800 mb-8 border-l-4 border-indigo-500 pl-4">최근 받은 업무</h2>
             <div className="flex-grow space-y-4">
               {!isLoggedIn ? (
-                <p className="text-center py-14 text-gray-400 font-medium">로그인이 필요합니다.</p>
+                <div className="flex flex-col items-center justify-center h-full py-14">
+                  <p className="text-gray-400 font-medium mb-4">로그인 후 이용 가능합니다.</p>
+                </div>
               ) : recentTasks.length > 0 ? (
                 recentTasks.map((task) => (
                   <div
@@ -129,9 +157,7 @@ const MainPage = () => {
                         <span>발신자: {task.writer}</span>
                       </div>
                     </div>
-                    <div className="shrink-0">
-                        {getGradeBadge(task.grade)}
-                    </div>
+                    <div className="shrink-0">{getGradeBadge(task.grade)}</div>
                   </div>
                 ))
               ) : (
@@ -150,7 +176,11 @@ const MainPage = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col min-h-[440px]">
             <h2 className="text-xl font-bold text-gray-800 mb-8 border-l-4 border-indigo-500 pl-4">최근 공지</h2>
             <div className="flex-grow space-y-4">
-              {recentBoards.length > 0 ? (
+              {!isLoggedIn ? (
+                <div className="flex flex-col items-center justify-center h-full py-14">
+                  <p className="text-gray-400 font-medium mb-4">로그인 후 이용 가능합니다.</p>
+                </div>
+              ) : recentBoards.length > 0 ? (
                 recentBoards.map((board) => (
                   <div
                     key={board.bno}
@@ -191,7 +221,6 @@ const MainPage = () => {
   );
 };
 
-// 상태 카드 컴포넌트
 const StatusCard = ({ title, count, color, icon, onClick }) => (
   <div onClick={onClick} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:shadow-md transition-all">
     <div>

@@ -1,11 +1,16 @@
 package com.desk.service;
 
 import com.desk.dto.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 public interface TicketService {
 
     // Ticket + TicketPersonal N개 생성
     TicketSentListDTO create(TicketCreateDTO req, String writer);
+
+    TicketSentListDTO createWithFiles(TicketCreateDTO req, String writer, List<MultipartFile> files);
 
     // 보낸 티켓 목록(페이징 + 필터)
     PageResponseDTO<TicketSentListDTO> listSent(String writer, TicketFilterDTO filter, PageRequestDTO pageRequestDTO);
