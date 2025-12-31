@@ -20,7 +20,7 @@ public interface MemberService {
 
      void join(MemberJoinDTO memberJoinDTO);
 
-     // 일반 사용자용 멤버 검색 (승인된 멤버만)
+     // 채팅용 멤버 검색 (관리자 아닌 사람도 가능, 승인된 멤버만)
      PageResponseDTO<MemberDTO> searchActiveMembers(PageRequestDTO pageRequestDTO, String keyword, String department);
 
      default MemberDTO entityToDTO(Member member){

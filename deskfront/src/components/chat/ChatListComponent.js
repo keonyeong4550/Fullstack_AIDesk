@@ -38,58 +38,58 @@ const ChatListComponent = ({ currentUserId }) => {
   // ✅ 백엔드 대신 로컬 상태로 목록 관리
   const [chatRooms, setChatRooms] = useState(INITIAL_ROOMS);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isGroupChat, setIsGroupChat] = useState(false);
-  const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  const [userInfoMap, setUserInfoMap] = useState({}); // email -> {nickname, department}
 
   const handleCreateChat = () => {
     setShowCreateModal(true);
-    setIsGroupChat(false);
-    setGroupName("");
     setSelectedUsers([]);
     setSearchKeyword("");
+    setSelectedDepartment("");
   };
 
-  const handleCreateGroupChat = () => {
-    setShowCreateModal(true);
-    setIsGroupChat(true);
-    setGroupName("");
-    setSelectedUsers([]);
-    setSearchKeyword("");
-  };
-
-  // 멤버 검색 API 호출 (디바운싱 적용)
+  // 멤버 검색 API 호출 (디바운싱 적용) - 검색어 또는 부서 선택 시 검색
   useEffect(() => {
-    if (searchKeyword.trim().length < 2) {
+    // 검색어가 2글자 미만이고 부서도 선택 안 했으면 검색 안 함
+    if (searchKeyword.trim().length < 2 && !selectedDepartment) {
       setSearchResults([]);
       setSearchError(null);
       return;
     }
 
     const timeoutId = setTimeout(() => {
-      handleSearchMembers(searchKeyword);
+      handleSearchMembers(searchKeyword, selectedDepartment);
     }, 300); // 300ms 디바운싱
 
     return () => clearTimeout(timeoutId);
-  }, [searchKeyword]);
+  }, [searchKeyword, selectedDepartment]);
 
-  const handleSearchMembers = async (keyword) => {
+  const handleSearchMembers = async (keyword, department) => {
     setSearchLoading(true);
     setSearchError(null);
     try {
-      const data = await searchMembers(keyword, 1, 20);
+      const data = await searchMembers(keyword || null, 1, 20, department || null);
       // 현재 사용자 제외 및 DTO 변환
       const filtered = data.dtoList
         .filter((m) => m.email !== (loginInfo?.email || currentUserId))
         .map((m) => ({
           email: m.email,
           nickname: m.nickname || m.email,
+          department: m.department || null,
         }));
       setSearchResults(filtered);
+      
+      // userInfoMap 업데이트
+      const newMap = {};
+      filtered.forEach(user => {
+        newMap[user.email] = { nickname: user.nickname, department: user.department };
+      });
+      setUserInfoMap(prev => ({ ...prev, ...newMap }));
     } catch (err) {
       console.error("멤버 검색 실패:", err);
       setSearchError("멤버 검색에 실패했습니다.");
@@ -110,9 +110,22 @@ const ChatListComponent = ({ currentUserId }) => {
   };
 
   const getChatRoomName = (room) => {
-    if (room.isGroup) return room.name || "그룹 채팅";
-    const otherUser = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
-    return otherUser || "알 수 없음";
+    if (room.isGroup) {
+      if (room.participantInfo && room.participantInfo.length > 0) {
+        const names = room.participantInfo.map(p => p.nickname);
+        if (names.length <= 2) {
+          return names.join(", ");
+        }
+        return `${names.slice(0, 2).join(", ")} 외 ${names.length - 2}명`;
+      }
+      return "그룹 채팅";
+    } else {
+      if (room.participantInfo && room.participantInfo.length > 0) {
+        return room.participantInfo[0].nickname;
+      }
+      const otherUser = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
+      return otherUser || "알 수 없음";
+    }
   };
 
   const formatLastMessage = (message) => {
@@ -122,21 +135,25 @@ const ChatListComponent = ({ currentUserId }) => {
 
   // 백엔드 createChatRoom 대신: 로컬에서 방 생성
   const handleCreateRoom = () => {
-    if (isGroupChat) {
-      if (!groupName.trim()) return alert("그룹 채팅방 이름을 입력해주세요.");
-      if (selectedUsers.length === 0) return alert("최소 1명 이상의 참여자를 선택해주세요.");
-    } else {
-      if (selectedUsers.length !== 1) return alert("1:1 채팅을 위해 1명의 사용자를 선택해주세요.");
+    if (selectedUsers.length === 0) {
+      return alert("최소 1명 이상의 참여자를 선택해주세요.");
     }
 
     const nextId = Math.max(0, ...chatRooms.map((r) => r.id)) + 1;
+    const isGroup = selectedUsers.length > 1;
 
-    const newRoom = isGroupChat
+    // 참여자 정보 생성
+    const participantInfo = selectedUsers.map(email => ({
+      email,
+      nickname: userInfoMap[email]?.nickname || email
+    }));
+
+    const newRoom = isGroup
       ? {
           id: nextId,
           isGroup: true,
-          name: groupName.trim(),
           participants: [currentUserId, ...selectedUsers],
+          participantInfo: participantInfo,
           lastMessage: null,
           unreadCount: 0,
         }
@@ -145,6 +162,7 @@ const ChatListComponent = ({ currentUserId }) => {
           isGroup: false,
           user1Id: currentUserId,
           user2Id: selectedUsers[0],
+          participantInfo: participantInfo,
           lastMessage: null,
           unreadCount: 0,
         };
@@ -175,12 +193,6 @@ const ChatListComponent = ({ currentUserId }) => {
             className="bg-[#111827] text-white px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-gray-200"
           >
             새 채팅
-          </button>
-          <button
-            onClick={handleCreateGroupChat}
-            className="bg-green-600 text-white px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-green-700 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-gray-200"
-          >
-            그룹 채팅
           </button>
         </div>
       </div>
@@ -253,8 +265,8 @@ const ChatListComponent = ({ currentUserId }) => {
       {/* 생성 모달 */}
       <MemberPickerModal
         open={showCreateModal}
-        title={isGroupChat ? "그룹 채팅 생성" : "새 채팅 생성"}
-        multi={isGroupChat}
+        title="새 채팅 생성"
+        multi={true}
         keyword={searchKeyword}
         onChangeKeyword={setSearchKeyword}
         results={availableUsers}
@@ -266,12 +278,14 @@ const ChatListComponent = ({ currentUserId }) => {
           setShowCreateModal(false);
           setSearchKeyword("");
           setSelectedUsers([]);
-          setGroupName("");
+          setSelectedDepartment("");
         }}
+        selectedDepartment={selectedDepartment}
+        onChangeDepartment={setSelectedDepartment}
         onConfirm={handleCreateRoom}
-        showGroupName={isGroupChat}
-        groupName={groupName}
-        onChangeGroupName={setGroupName}
+        showGroupName={false}
+        groupName=""
+        onChangeGroupName={() => {}}
       />
     </>
   );

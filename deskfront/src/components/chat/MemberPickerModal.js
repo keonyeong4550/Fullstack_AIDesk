@@ -8,7 +8,7 @@ import React from "react";
  * @param {boolean} multi - 다중 선택 여부
  * @param {string} keyword - 검색 키워드
  * @param {Function} onChangeKeyword - 검색 키워드 변경 핸들러
- * @param {Array} results - 검색 결과 배열 [{ email: string, nickname?: string }]
+ * @param {Array} results - 검색 결과 배열 [{ email: string, nickname?: string, department?: string }]
  * @param {Array} selected - 선택된 이메일 배열
  * @param {Function} onToggle - 선택 토글 핸들러 (email: string) => void
  * @param {boolean} loading - 로딩 상태
@@ -18,6 +18,8 @@ import React from "react";
  * @param {boolean} showGroupName - 그룹 이름 입력 표시 여부
  * @param {string} groupName - 그룹 이름
  * @param {Function} onChangeGroupName - 그룹 이름 변경 핸들러
+ * @param {string} selectedDepartment - 선택된 부서
+ * @param {Function} onChangeDepartment - 부서 변경 핸들러
  */
 const MemberPickerModal = ({
   open,
@@ -35,7 +37,23 @@ const MemberPickerModal = ({
   showGroupName = false,
   groupName = "",
   onChangeGroupName,
+  selectedDepartment = "",
+  onChangeDepartment,
 }) => {
+  // 부서 목록 및 이름 매핑
+  const departments = [
+    { value: "DEVELOPMENT", label: "💻 개발팀", color: "blue" },
+    { value: "SALES", label: "📊 영업팀", color: "green" },
+    { value: "HR", label: "👥 인사팀", color: "purple" },
+    { value: "DESIGN", label: "🎨 디자인팀", color: "pink" },
+    { value: "PLANNING", label: "📝 기획팀", color: "yellow" },
+    { value: "FINANCE", label: "💰 재무팀", color: "indigo" },
+  ];
+
+  const getDepartmentLabel = (dept) => {
+    const deptObj = departments.find((d) => d.value === dept);
+    return deptObj ? deptObj.label : dept || "부서 미정";
+  };
   if (!open) return null;
 
   return (
@@ -68,14 +86,45 @@ const MemberPickerModal = ({
 
         <div className="mb-6">
           <label className="block text-sm font-bold mb-2 text-gray-700 uppercase tracking-wide">
-            {multi ? "참여자 선택 (복수 선택 가능)" : "받는 사람 선택"}
+            참여자 선택 (복수 선택 가능)
           </label>
+
+          {/* 부서 카테고리 버튼 */}
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onChangeDepartment?.("")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  selectedDepartment === ""
+                    ? "bg-[#111827] text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                전체
+              </button>
+              {departments.map((dept) => (
+                <button
+                  key={dept.value}
+                  type="button"
+                  onClick={() => onChangeDepartment?.(dept.value)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    selectedDepartment === dept.value
+                      ? "bg-[#111827] text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {dept.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <input
             type="text"
             value={keyword}
             onChange={(e) => onChangeKeyword(e.target.value)}
-            placeholder="사용자 검색 (2글자 이상 입력)"
+            placeholder="사용자 검색 (선택사항)"
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
             disabled={loading}
           />
@@ -90,9 +139,9 @@ const MemberPickerModal = ({
 
           {!loading && !error && (
             <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl">
-              {keyword.trim().length < 2 ? (
+              {!selectedDepartment && keyword.trim().length < 2 ? (
                 <div className="p-4 text-center text-gray-400 text-sm">
-                  검색어를 2글자 이상 입력해주세요.
+                  부서를 선택하거나 검색어를 입력해주세요.
                 </div>
               ) : results.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">검색 결과가 없습니다.</div>
@@ -108,11 +157,16 @@ const MemberPickerModal = ({
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-semibold text-gray-900">
                           {user.nickname || user.email}
                         </div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="text-sm text-gray-500 mb-1">{user.email}</div>
+                        {user.department && (
+                          <div className="text-xs text-gray-400">
+                            {getDepartmentLabel(user.department)}
+                          </div>
+                        )}
                       </div>
                       {selected.includes(user.email) && (
                         <span className="text-blue-600 font-bold text-lg">✓</span>
