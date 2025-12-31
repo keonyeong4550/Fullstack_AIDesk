@@ -20,7 +20,7 @@ const AIChatWidget = ({ onClose }) => {
   const loginState = useSelector((state) => state.loginSlice);
   const currentUserDept = loginState.department || "Unknown";
   const currentUserEmail = loginState.email;
-
+  const [aiSummary, setAiSummary] = useState("");
   const [conversationId] = useState(generateUUID());
   const [messages, setMessages] = useState([
     { role: "assistant", content: "안녕하세요. 어떤 업무를 도와드릴까요?" },
@@ -76,55 +76,6 @@ const AIChatWidget = ({ onClose }) => {
     const hasReceivers =
       t.receivers && t.receivers.length > 0 && t.receivers[0] !== "";
     return t.title?.trim() && t.content?.trim() && hasReceivers && t.deadline;
-  };
-
-  // ✅ PDF 다운로드 기능 구현
-  const handleDownloadPdf = async () => {
-    const element = pdfRef.current;
-    if (!element) return;
-
-    try {
-      // 1. 해당 영역을 캔버스로 변환
-      const canvas = await html2canvas(element, {
-        scale: 2, // 해상도 2배 (선명하게)
-        backgroundColor: "#ffffff", // 배경 흰색 고정
-      });
-
-      // 2. 캔버스를 이미지 데이터로 변환
-      const imgData = canvas.toDataURL("image/png");
-
-      // 3. A4 사이즈 기준 계산
-      const imgWidth = 210; // A4 가로 (mm)
-      const pageHeight = 297; // A4 세로 (mm)
-      const imgHeight = (canvas.height * imgWidth) / canvas.width; // 비율에 맞춘 높이
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // 4. PDF 생성
-      const doc = new jsPDF("p", "mm", "a4");
-
-      // 첫 페이지 작성
-      doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // 내용이 길어서 넘어가는 경우 페이지 추가
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        doc.addPage();
-        doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      // 5. 파일 저장
-      const fileName = currentTicket.title
-        ? `${currentTicket.title}_업무요청서.pdf`
-        : "업무요청서.pdf";
-      doc.save(fileName);
-    } catch (error) {
-      console.error("PDF 생성 실패:", error);
-      alert("PDF 다운로드 중 오류가 발생했습니다.");
-    }
   };
 
   const handleSendMessage = async () => {
@@ -201,6 +152,64 @@ const AIChatWidget = ({ onClose }) => {
       setSubmitSuccess(false);
     }
   };
+  // ✅ [1] AI 요약 요청만 하는 함수
+  const handleAiSummary = async () => {
+    if (!currentTicket.title && !currentTicket.content) {
+      alert("요약할 내용(제목, 내용)을 먼저 입력해주세요.");
+      return;
+    }
+
+    setIsLoading(true);
+    setAiSummary("🤖 문서를 분석하여 요약 중입니다...");
+
+    try {
+      const summaryText = await aiSecretaryApi.getSummary(currentTicket);
+      setAiSummary(summaryText); // 결과 나오면 화면에 표시
+    } catch (error) {
+      console.error(error);
+      setAiSummary("오류가 발생하여 요약을 완료하지 못했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ [2] PDF 저장만 하는 함수 (현재 화면 캡처)
+  const handleDownloadPdf = async () => {
+    const element = pdfRef.current;
+    if (!element) return;
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+      });
+      const imgData = canvas.toDataURL("image/png");
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      const doc = new jsPDF("p", "mm", "a4");
+      doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        doc.addPage();
+        doc.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // 제목이 없으면 '업무요청서'로 저장
+      const fileName = `${currentTicket.title || "업무요청서"}.pdf`;
+      doc.save(fileName);
+    } catch (error) {
+      console.error(error);
+      alert("PDF 다운로드 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
     <div className="ai-widget-overlay">
@@ -265,35 +274,93 @@ const AIChatWidget = ({ onClose }) => {
           <div className="ai-ticket-section">
             <div
               className="ticket-header-row"
-              style={{ display: "flex", gap: "10px" }}
+              style={{ display: "flex", gap: "8px", alignItems: "center" }}
             >
               <span className="dept-badge" style={{ marginRight: "auto" }}>
                 To: {targetDept || "(미지정)"}
               </span>
 
-              {/* ✅ PDF 다운로드 버튼 추가 */}
+              {/* ✅ [1. AI 요약 버튼] */}
               <button
                 type="button"
-                onClick={handleDownloadPdf}
+                onClick={handleAiSummary}
                 style={{
-                  background: "#ef4444",
+                  background: "#6366f1", // 인디고 색상
                   color: "white",
                   border: "none",
                   borderRadius: "6px",
                   padding: "6px 12px",
                   cursor: "pointer",
+                  fontWeight: "bold",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                disabled={isLoading}
+              >
+                <span>✨</span> 요약
+              </button>
+
+              {/* ✅ [2. PDF 다운로드 버튼] */}
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                style={{
+                  background: "#ef4444", // 기존 빨간색 유지
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
                 }}
               >
-                📄 PDF 저장
+                📄 PDF
               </button>
 
               <button className="reset-btn" onClick={handleReset}>
-                🔄 초기화
+                🔄
               </button>
             </div>
 
-            {/* ✅ PDF 캡처 대상에 ref 연결 */}
+            {/* 내용 영역 */}
             <div className="ticket-preview-box" ref={pdfRef}>
+              {/* AI 요약 결과 (값 있으면 자동 표시) */}
+              {aiSummary && typeof aiSummary === "string" && (
+                <div
+                  style={{
+                    border: "2px solid #6366f1",
+                    padding: "15px",
+                    marginBottom: "20px",
+                    backgroundColor: "#f5f3ff",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <h4
+                    style={{
+                      margin: "0 0 10px 0",
+                      color: "#4f46e5",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    🤖 AI 요약 리포트
+                  </h4>
+                  <p
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      fontSize: "14px",
+                      lineHeight: "1.6",
+                      color: "#374151",
+                      margin: 0,
+                    }}
+                  >
+                    {aiSummary}
+                  </p>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>
                   제목 <span className="text-red-500">*</span>

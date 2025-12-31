@@ -104,4 +104,25 @@ export const aiSecretaryApi = {
       throw error;
     }
   },
+  // [수정된 요약 요청 함수]
+  getSummary: async (ticketData) => {
+    try {
+      const res = await jwtAxios.post(
+        `${API_SERVER_HOST}/api/ai/summarize-report`,
+        ticketData
+      );
+
+      // 🛡️ 방어 로직: 응답이 문자열이 아니라 객체(에러 등)면 처리
+      if (typeof res.data === "object") {
+        console.error("AI 요약 응답이 이상합니다:", res.data);
+        // 에러 메시지가 있다면 그걸 반환, 아니면 기본 문구
+        return res.data.error || "요약 내용을 불러오지 못했습니다.";
+      }
+
+      return res.data; // 정상 문자열 반환
+    } catch (err) {
+      console.error("API 호출 에러:", err);
+      return "서버와 연결할 수 없어 요약을 생성하지 못했습니다.";
+    }
+  },
 };
