@@ -102,4 +102,3 @@ export const inviteUsers = async (roomId, { inviteeEmails }) => {
   });
   return res.data;
 };
-

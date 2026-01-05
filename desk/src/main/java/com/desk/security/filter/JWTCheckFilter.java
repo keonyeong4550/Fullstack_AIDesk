@@ -2,6 +2,7 @@ package com.desk.security.filter;
 
 import com.google.gson.Gson;
 import com.desk.dto.MemberDTO;
+import com.desk.util.CustomJWTException;
 import com.desk.util.JWTUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -59,6 +60,16 @@ public class JWTCheckFilter extends OncePerRequestFilter{
         // 클라이언트에서 Authorization: Bearer <JWT>로 전달
         String authHeaderStr = request.getHeader("Authorization");
 
+        if (authHeaderStr == null || !authHeaderStr.startsWith("Bearer ")) {
+            log.error("JWT Check Error: Authorization header is missing or invalid");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            PrintWriter printWriter = response.getWriter();
+            printWriter.println(new Gson().toJson(Map.of("error", "UNAUTHORIZED")));
+            printWriter.close();
+            return;
+        }
+        
         try {
             //Bearer accestoken... "Bearer " 접두사 제거
             String accessToken = authHeaderStr.substring(7);
@@ -91,10 +102,7 @@ public class JWTCheckFilter extends OncePerRequestFilter{
             // 지금 로그인한 사용자의 인증 정보(사용자 정보, 비밀번호, 권한 등)를 SecurityContext에 저장
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
-            filterChain.doFilter(request, response);
-
-        }catch(Exception e){ // 예외 처리 (JWT 검증 실패)
-
+        }catch(CustomJWTException e){ // 예외 처리 (JWT 검증 실패만 처리)
             log.error("JWT Check Error..............");
             log.error(e.getMessage());
 
@@ -105,8 +113,15 @@ public class JWTCheckFilter extends OncePerRequestFilter{
             PrintWriter printWriter = response.getWriter();
             printWriter.println(msg);
             printWriter.close();
+            return; // JWT 검증 실패 시 여기서 종료
 
+        }catch(Exception e){ // JWT 검증과 무관한 예외는 그대로 전파
+            // JWT 검증과 무관한 예외는 그대로 전파 (ServletException, IOException 등)
+            throw e;
         }
+        
+        // JWT 검증 성공 시 필터 체인 계속 진행
+        filterChain.doFilter(request, response);
     }
 
 }

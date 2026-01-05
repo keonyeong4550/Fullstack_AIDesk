@@ -36,6 +36,12 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
     setError(null);
     try {
       const rooms = await getChatRooms();
+      // 인증 에러 처리
+      if (rooms && typeof rooms === 'object' && rooms.error === "ERROR_ACCESS_TOKEN") {
+        setError("인증이 만료되었습니다. 다시 로그인해주세요.");
+        setChatRooms([]);
+        return;
+      }
       // 백엔드 응답을 프론트엔드 형식으로 변환
       const transformedRooms = rooms.map((room) => {
         // participants에서 현재 사용자 제외한 상대방 찾기
@@ -148,8 +154,15 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
       }
       return "그룹 채팅";
     } else {
+      // DIRECT 방: 현재 사용자를 제외한 상대방 찾기
       if (room.participantInfo && room.participantInfo.length > 0) {
-        return room.participantInfo[0].nickname;
+        const otherParticipant = room.participantInfo.find(
+          (p) => p.email !== currentUserId
+        );
+
+        if (otherParticipant) {
+          return otherParticipant.nickname;
+        }
       }
       const otherUser = room.user1Id === currentUserId ? room.user2Id : room.user1Id;
       return otherUser || "알 수 없음";

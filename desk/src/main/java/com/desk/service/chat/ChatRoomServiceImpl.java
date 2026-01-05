@@ -29,7 +29,7 @@ public class ChatRoomServiceImpl implements ChatRoomService {
     @Transactional(readOnly = true)
     public List<ChatRoomDTO> getRooms(String userId) {
         List<ChatRoom> rooms = chatRoomRepository.findActiveRoomsByUserId(userId);
-        
+
         return rooms.stream().map(room -> {
             ChatParticipant participant = chatParticipantRepository
                     .findByChatRoomIdAndUserId(room.getId(), userId)
@@ -39,8 +39,17 @@ public class ChatRoomServiceImpl implements ChatRoomService {
             if (participant != null && room.getLastMsgSeq() != null) {
                 unreadCount = Math.max(0, room.getLastMsgSeq() - participant.getLastReadSeq());
             }
+
+            // 참여자 목록 조회 및 포함
+            List<ChatParticipant> participants = chatParticipantRepository.findByChatRoomId(room.getId());
+            List<ChatParticipantDTO> participantDTOs = participants.stream()
+                    .map(this::toChatParticipantDTO)
+                    .collect(Collectors.toList());
             
-            return toChatRoomDTO(room, participant, unreadCount);
+            ChatRoomDTO dto = toChatRoomDTO(room, participant, unreadCount);
+            dto.setParticipants(participantDTOs);
+            
+            return dto;
         }).collect(Collectors.toList());
     }
     
