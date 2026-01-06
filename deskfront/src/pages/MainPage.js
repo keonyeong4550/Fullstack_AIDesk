@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import BasicLayout from "../layouts/BasicLayout";
 import { getRecentReceivedTickets, getReceivedTickets, getSentTickets } from "../api/ticketApi";
 import { getRecentBoards } from "../api/boardApi";
+import { getChatRooms } from "../api/chatApi";
 import useCustomPin from "../hooks/useCustomPin";
 import TicketDetailModal from "../components/ticket/TicketDetailModal";
 import { getGradeBadge } from "../util/ticketUtils";
+import AIChatWidget from "../components/menu/AIChatWidget";
 
 const MainPage = () => {
   const loginState = useSelector((state) => state.loginSlice);
@@ -16,55 +18,49 @@ const MainPage = () => {
   const [recentTasks, setRecentTasks] = useState([]);
   const [recentBoards, setRecentBoards] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [pendingSentCount, setPendingSentCount] = useState(0);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   const [selectedTno, setSelectedTno] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAIWidgetOpen, setIsAIWidgetOpen] = useState(false); // 요청서 모달 상태 추가
 
-  // 이메일 존재 여부로 로그인 확인
   const isLoggedIn = !!loginState.email;
   const email = loginState.email;
   const displayName = loginState.nickname || "사용자";
 
   const getCategoryStyle = (category) => {
     switch (category) {
-      case "공지사항": return "bg-red-100 text-red-600 border border-red-200";
-      case "가이드": return "bg-blue-100 text-blue-600 border border-blue-200";
-      case "FAQ": return "bg-green-100 text-green-600 border border-green-200";
-      default: return "bg-gray-100 text-gray-500 border border-gray-200";
+      case "공지사항": return "ui-badge-category-notice";
+      case "가이드": return "ui-badge-category-guide";
+      case "FAQ": return "ui-badge-category-faq";
+      default: return "ui-badge-category";
     }
   };
 
   const fetchMainData = useCallback(() => {
-    // 1. 로그인이 되어 있지 않으면 모든 상태를 초기화하고 API를 호출하지 않음
     if (!isLoggedIn) {
       setRecentTasks([]);
       setRecentBoards([]);
       setUnreadCount(0);
-      setPendingSentCount(0);
+      setUnreadChatCount(0);
       return;
     }
 
-    // 2. 로그인 상태일 때만 API 호출 (catch를 추가하여 에러 발생 시 콘솔 오류 방지)
-    getRecentBoards()
-      .then(data => setRecentBoards(data || []))
-      .catch(err => console.error("공지사항 로드 실패:", err));
-
-    getRecentReceivedTickets(email)
-      .then(data => setRecentTasks(data || []))
-      .catch(err => {
-        console.error("최근 업무 로드 실패:", err);
-        setRecentTasks([]);
-      });
-
-    getReceivedTickets(email, { size: 1 }, { read: false })
-      .then(res => setUnreadCount(res.totalCount || 0))
-      .catch(() => setUnreadCount(0));
-
-    getSentTickets(email, { size: 1 }, { state: 'IN_PROGRESS' })
-      .then(res => setPendingSentCount(res.totalCount || 0))
-      .catch(() => setPendingSentCount(0));
-
+    getRecentBoards().then(data => setRecentBoards(data || [])).catch(() => {});
+    getRecentReceivedTickets(email).then(data => setRecentTasks(data || [])).catch(() => setRecentTasks([]));
+    getReceivedTickets(email, { size: 1 }, { read: false }).then(res => setUnreadCount(res.totalCount || 0)).catch(() => setUnreadCount(0));
+    
+    // 채팅방 목록 조회 후 unreadCount 합산
+    getChatRooms()
+      .then(rooms => {
+        if (Array.isArray(rooms)) {
+          const totalUnread = rooms.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+          setUnreadChatCount(totalUnread);
+        } else {
+          setUnreadChatCount(0);
+        }
+      })
+      .catch(() => setUnreadChatCount(0));
   }, [isLoggedIn, email]);
 
   useEffect(() => {
@@ -89,125 +85,407 @@ const MainPage = () => {
     setIsModalOpen(true);
   };
 
+  // 3D Parallax Effect
+  useEffect(() => {
+    const container = document.getElementById('hero-section');
+    const scene = document.querySelector('.scene-content');
+    
+    if (!container || !scene) return;
+
+    const handleMouseMove = (e) => {
+      if (window.matchMedia("(min-width: 768px)").matches) {
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        
+        const percentX = (x - centerX) / centerX;
+        const percentY = (y - centerY) / centerY;
+
+        // Parallax intensity
+        const rotateY = percentX * 5; 
+        const rotateX = percentY * -5; 
+        const translateX = percentX * 10;
+        const translateY = percentY * 10;
+
+        scene.style.transform = `
+          rotateX(${rotateX}deg) 
+          rotateY(${rotateY}deg)
+          translateX(${translateX}px)
+          translateY(${translateY}px)
+        `;
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (scene) {
+        scene.style.transform = `rotateX(0) rotateY(0) translateX(0) translateY(0)`;
+      }
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
+
   return (
     <BasicLayout>
-      <div className="max-w-7xl mx-auto px-6 py-12 space-y-8 bg-gray-50 min-h-[calc(100vh-80px)]">
+      {/* 요청서 모달 추가 */}
+      {isAIWidgetOpen && <AIChatWidget onClose={() => setIsAIWidgetOpen(false)} />}
 
-        <section className="bg-indigo-600 rounded-2xl p-10 text-white shadow-lg relative overflow-hidden">
-          <div className="relative z-10">
-            <h1 className="text-3xl font-bold mb-3">
-              {isLoggedIn ? `안녕하세요, ${displayName}님` : "로그인이 필요합니다"}
-            </h1>
-            <p className="text-lg text-indigo-100 opacity-90">AI 챗봇과 대화하며 업무 요청을 정확하게 전달하세요.</p>
-            <button
-              onClick={() => isLoggedIn ? navigate("/tickets/add") : navigate("/member/login")}
-              className="mt-6 bg-white text-indigo-600 px-7 py-2.5 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-md active:scale-95"
-            >
-              {isLoggedIn ? "+ 새 업무 요청 만들기" : "로그인 하러 가기"}
-            </button>
+      <div className="bg-slate-50 min-h-screen flex flex-col">
+        {/* Hero Section */}
+        <section id="hero-section" className="relative w-full bg-[#05060a] text-white overflow-hidden shadow-xl z-0 min-h-[550px] md:min-h-[450px] transition-all">
+          {/* 1. Vivid Background Grid */}
+          <div className="absolute inset-0 bg-grid pointer-events-none"></div>
+
+          {/* 2. Sharp Flowing Lines (SVG) */}
+          <div className="flow-lines-container">
+            <svg width="100%" height="100%" preserveAspectRatio="none">
+              <defs>
+                {/* Brand Blue Gradient Stroke */}
+                <linearGradient id="gradient-stroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style={{stopColor: '#1f3a68', stopOpacity: 0}}></stop>
+                  <stop offset="20%" style={{stopColor: '#3b82f6', stopOpacity: 0.8}}></stop>
+                  <stop offset="50%" style={{stopColor: '#60a5fa', stopOpacity: 1}}></stop>
+                  <stop offset="80%" style={{stopColor: '#3b82f6', stopOpacity: 0.8}}></stop>
+                  <stop offset="100%" style={{stopColor: '#1f3a68', stopOpacity: 0}}></stop>
+                </linearGradient>
+                
+                {/* Brand Orange Gradient Stroke */}
+                <linearGradient id="gradient-stroke-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{stopColor: '#ff8a2a', stopOpacity: 0}}></stop>
+                  <stop offset="50%" style={{stopColor: '#ff8a2a', stopOpacity: 1}}></stop>
+                  <stop offset="100%" style={{stopColor: '#ff8a2a', stopOpacity: 0}}></stop>
+                </linearGradient>
+              </defs>
+
+              {/* Flow Path 1: Top Curve */}
+              <path className="flow-path" d="M-100,150 C300,150 400,350 800,350 S1300,100 2000,200"></path>
+              
+              {/* Flow Path 2: Bottom Wave */}
+              <path className="flow-path" d="M-100,650 C500,650 600,450 1000,450 S1600,750 2000,550" style={{animationDuration: '20s', strokeWidth: '2px'}}></path>
+              
+              {/* Flow Path 3: Reverse Orange (Subtle) */}
+              <path className="flow-path-reverse" d="M2000,100 C1500,100 1400,400 900,400 S400,100 -100,300"></path>
+              
+              {/* Flow Path 4: Reverse Orange (Dynamic) */}
+              <path className="flow-path-reverse" d="M2000,800 C1600,800 1500,500 1000,500 S400,900 -100,700" style={{animationDuration: '18s'}}></path>
+              
+              {/* Extra vertical connection hints */}
+              <path className="flow-path" d="M400,-100 Q400,400 800,1000" style={{strokeOpacity: 0.3, strokeDasharray: '5, 15', strokeWidth: '1px'}}></path>
+            </svg>
           </div>
-          <div className="absolute top-[-20%] right-[-5%] w-72 h-72 bg-indigo-500 rounded-full opacity-20"></div>
-          <div className="absolute bottom-[-15%] left-[30%] w-32 h-32 bg-indigo-400 rounded-full opacity-10"></div>
-        </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <StatusCard
-            title="중요 업무 (PIN)"
-            count={isLoggedIn ? pinItems.length : 0}
-            color="text-blue-500"
-            icon="⭐"
-            onClick={() => isLoggedIn && window.dispatchEvent(new Event('open-pin-drawer'))}
-          />
-          <StatusCard
-            title="읽지 않은 업무 (받은함)"
-            count={unreadCount}
-            color="text-green-500"
-            icon="✉️"
-            onClick={() => moveToListWithFilter('RECEIVED', 'UNREAD')}
-          />
-          <StatusCard
-            title="진행 중인 업무 (전체)"
-            count={pendingSentCount}
-            color="text-orange-500"
-            icon="💬"
-            onClick={() => moveToListWithFilter('ALL', 'ALL', 'IN_PROGRESS')}
-          />
-        </section>
+          {/* Ambient Glows */}
+          <div className="glow-blob bg-[#1f3a68] w-[800px] h-[800px] -top-[20%] -left-[10%] animate-pulse" style={{animationDuration: '6s'}}></div>
+          <div className="glow-blob bg-[#ff8a2a] w-[600px] h-[600px] -bottom-[20%] -right-[10%] animate-pulse" style={{animationDuration: '8s'}}></div>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 최근 받은 업무 */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col min-h-[440px]">
-            <h2 className="text-xl font-bold text-gray-800 mb-8 border-l-4 border-indigo-500 pl-4">최근 받은 업무</h2>
-            <div className="flex-grow space-y-4">
-              {!isLoggedIn ? (
-                <div className="flex flex-col items-center justify-center h-full py-14">
-                  <p className="text-gray-400 font-medium mb-4">로그인 후 이용 가능합니다.</p>
+          {/* Content Grid */}
+          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-16 items-center z-20 min-h-[550px] md:min-h-[650px] py-16">
+            
+            {/* Left: Text Content */}
+            <div className="text-center lg:text-left space-y-8 pointer-events-none lg:pointer-events-auto relative">
+              {isLoggedIn && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1f3a68]/40 border border-[#1f3a68] text-xs font-semibold text-blue-100 mb-2 backdrop-blur-sm">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff8a2a] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff8a2a]"></span>
+                  </span>
+                  AI Workflow Engine Active
                 </div>
-              ) : recentTasks.length > 0 ? (
-                recentTasks.map((task) => (
-                  <div
-                    key={task.tno}
-                    onClick={() => openDetail(task.tno)}
-                    className="p-5 border border-gray-50 rounded-xl hover:bg-gray-50 transition-all cursor-pointer flex justify-between items-center"
-                  >
-                    <div className="truncate pr-4">
-                      <h3 className="text-lg font-semibold text-gray-800 truncate">{task.title}</h3>
-                      <div className="flex text-sm text-gray-500 space-x-3 mt-1.5">
-                        <span>🕒 {task.birth}</span>
-                        <span>발신자: {task.writer}</span>
+              )}
+              
+              <h1 className="text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] drop-shadow-2xl">
+                {isLoggedIn ? (
+                  <>
+                    안녕하세요, {displayName}님 <br />
+                    <span className="text-gradient-brand">오늘의 업무를 시작해볼까요?</span>
+                  </>
+                ) : (
+                  <>
+                    로그인이 필요합니다
+                  </>
+                )}
+              </h1>
+              
+              <p className="text-lg text-gray-300 max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
+                AI 챗봇과 대화하며 복잡한 업무 요청서를 자동으로 생성하세요. <br className="hidden lg:block" />
+                {isLoggedIn && (
+                  <>
+                    오늘 처리해야 할 중요한 업무가 <strong className="text-[#ff8a2a] font-semibold">{pinItems.length}건</strong> 있습니다.
+                  </>
+                )}
+              </p>
+
+              {/* Interactive AI Input Area */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
+                <button
+                  onClick={() => isLoggedIn ? setIsAIWidgetOpen(true) : navigate("/member/login")}
+                  className="group px-8 py-3.5 rounded-xl bg-[#1f3a68] hover:bg-[#2c4c82] border border-[#ff8a2a]/50 text-white font-semibold shadow-[0_0_20px_rgba(31,58,104,0.4)] transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <span>{isLoggedIn ? "새 업무 요청서 만들기" : "로그인 하러 가기"}</span>
+                  <span className="material-symbols-outlined text-sm text-[#ff8a2a] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right: 3D Visualization */}
+            <div id="scene" className="h-[550px] w-full flex items-center justify-center scene-container relative pointer-events-none lg:pointer-events-auto">
+              <div className="scene-content relative w-full h-full flex items-center justify-center" style={{transform: 'rotateX(0deg) rotateY(0deg) translateX(0px) translateY(0px)'}}>
+                
+                {/* 1. Center Core: 업무 히스토리 (Hub) */}
+                <div className="glass-card absolute w-72 h-72 rounded-[2rem] flex flex-col items-center justify-center z-10 animate-float-slow transform rotate-6 border-[#ff8a2a]/30">
+                  <div className="absolute inset-0 rounded-[2rem] border border-[#1f3a68] animate-pulse"></div>
+                  <div className="w-24 h-24 bg-gradient-to-tr from-[#1f3a68] to-[#0f172a] rounded-3xl flex items-center justify-center mb-5 shadow-2xl shadow-black/50 relative border border-white/10">
+                    <span className="material-symbols-outlined text-5xl text-white">hub</span>
+                    {/* Connection dots */}
+                    <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#ff8a2a] rounded-full shadow-[0_0_10px_#ff8a2a]"></div>
+                    <div className="absolute -bottom-1.5 -left-1.5 w-2 h-2 bg-blue-400 rounded-full"></div>
+                  </div>
+                  <h3 className="font-bold text-xl text-white tracking-wide">Work History</h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-300 mt-2 bg-[#1f3a68]/60 px-3 py-1 rounded-full border border-[#1f3a68] shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff8a2a] animate-pulse"></span>
+                    Syncing Context...
+                  </div>
+                  {/* Flow Diagram */}
+                  <div className="w-48 mt-5 relative h-8">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/10 -translate-y-1/2"></div>
+                    <div className="absolute top-1/2 left-[20%] w-2 h-2 bg-gray-500 rounded-full -translate-y-1/2 -translate-x-1/2"></div>
+                    <div className="absolute top-1/2 left-[50%] w-3 h-3 bg-[#1f3a68] border border-[#ff8a2a] rounded-full -translate-y-1/2 -translate-x-1/2 z-10 box-content"></div>
+                    <div className="absolute top-1/2 left-[80%] w-2 h-2 bg-white rounded-full -translate-y-1/2 -translate-x-1/2 shadow-[0_0_8px_white]"></div>
+                  </div>
+                </div>
+
+                {/* 2. Top Right: 업무 요청 (Ticket) */}
+                <div className="glass-card absolute top-[12%] right-[2%] w-56 p-5 rounded-2xl animate-float-delayed z-20 border-[#ff8a2a]/20 hover:border-[#ff8a2a] transition-colors duration-300">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#1f3a68] flex items-center justify-center text-[#ff8a2a] border border-[#ff8a2a]/20">
+                      <span className="material-symbols-outlined">description</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-[#ff8a2a]/10 text-[#ff8a2a] px-2 py-1 rounded border border-[#ff8a2a]/20">NEW TICKET</span>
+                  </div>
+                  <div className="text-xs text-gray-400 mb-1 uppercase tracking-wide">Request detected</div>
+                  <div className="font-bold text-white text-base leading-tight">"Bug fix in Login"</div>
+                  <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-400 bg-black/20 p-2 rounded-lg">
+                    <span className="material-symbols-outlined text-sm text-[#ff8a2a]">arrow_right_alt</span>
+                    <span>Auto-created Ticket #1042</span>
+                  </div>
+                </div>
+
+                {/* 3. Bottom Left: 회의록 (Recap) */}
+                <div className="glass-card absolute bottom-[15%] left-[0%] w-64 p-5 rounded-2xl animate-float z-20 border-blue-400/20">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-1.5 bg-blue-500/20 rounded-md">
+                      <span className="material-symbols-outlined text-blue-300 text-lg">record_voice_over</span>
+                    </div>
+                    <span className="text-sm font-semibold text-white">Meeting Recap</span>
+                  </div>
+                  {/* Transcribing Visual */}
+                  <div className="space-y-3">
+                    <div className="flex gap-1.5 items-center justify-center h-8 bg-black/20 rounded-lg px-2">
+                      <div className="w-1 h-3 bg-[#ff8a2a] rounded-full animate-pulse"></div>
+                      <div className="w-1 h-5 bg-[#ff8a2a] rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-1 h-8 bg-[#ff8a2a] rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                      <div className="w-1 h-4 bg-[#ff8a2a] rounded-full animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                      <div className="w-1 h-6 bg-[#ff8a2a] rounded-full animate-pulse" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-1 h-2 bg-[#ff8a2a] rounded-full animate-pulse"></div>
+                    </div>
+                    <div className="text-xs text-gray-300 flex items-center gap-2 bg-[#1f3a68]/30 p-2 rounded-lg border border-white/5">
+                      <span className="material-symbols-outlined text-sm text-green-400">check_circle</span>
+                      <span>Action Items Extracted</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Top Left: 채팅 (Chat Icon) */}
+                <div className="glass-card absolute top-[22%] left-[8%] w-16 h-16 rounded-2xl flex flex-col items-center justify-center animate-float-slow z-0 border-[#1f3a68] shadow-[0_0_30px_rgba(31,58,104,0.3)] cursor-pointer" onClick={() => isLoggedIn && setIsAIWidgetOpen(true)}>
+                  <span className="material-symbols-outlined text-blue-200 text-3xl">forum</span>
+                </div>
+
+                {/* 5. Bottom Right: 팀 협업 (Team Status) */}
+                <div className="glass-card absolute bottom-[28%] right-[10%] w-auto pl-2 pr-5 py-2 rounded-full flex items-center gap-3 animate-float z-30 border-[#ff8a2a]/30 bg-[#05060a]/80">
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1f3a68] to-gray-900 flex items-center justify-center text-xs font-bold text-white border border-white/10">
+                      <span className="material-symbols-outlined text-sm">groups</span>
+                    </div>
+                    <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[#05060a] rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-[#ff8a2a] rounded-full animate-ping absolute opacity-75"></div>
+                      <div className="w-2 h-2 bg-[#ff8a2a] rounded-full relative"></div>
+                    </div>
+                  </div>
+                  <div className="text-xs">
+                    <div className="font-bold text-white">Team Channel</div>
+                    <div className="text-blue-200/70">Active members</div>
+                  </div>
+                </div>
+
+                {/* Orbitals */}
+                <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] border border-[#1f3a68]/40 rounded-full -translate-x-1/2 -translate-y-1/2 z-[-1]" style={{transform: 'translate(-50%, -50%) rotateX(60deg)'}}></div>
+                <div className="absolute top-1/2 left-1/2 w-[800px] h-[800px] border border-white/5 rounded-full -translate-x-1/2 -translate-y-1/2 z-[-1] animate-[spin_60s_linear_infinite]"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Main Content Area */}
+        <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full space-y-10 -mt-16 relative z-20">
+          {/* Stats Overview Cards */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatusCard
+              title="중요 업무 (PIN)"
+              count={isLoggedIn ? pinItems.length : 0}
+              color="text-brandNavy"
+              icon="star"
+              onClick={() => isLoggedIn && window.dispatchEvent(new Event('open-pin-drawer'))}
+            />
+            <StatusCard
+              title="읽지 않은 업무"
+              count={unreadCount}
+              color="text-brandNavy"
+              icon="mail"
+              onClick={() => moveToListWithFilter('RECEIVED', 'UNREAD')}
+              hasBadge={unreadCount > 0}
+            />
+            <StatusCard
+              title="내가 읽지 않은 채팅"
+              count={unreadChatCount}
+              color="text-brandNavy"
+              icon="chat"
+              onClick={() => isLoggedIn ? navigate("/chat") : navigate("/member/login")}
+              hasBadge={unreadChatCount > 0}
+            />
+          </section>
+
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left: Recent Tasks */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-2xl sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 bg-brandNavy rounded-full"></div>
+                  <h2 className="text-xl font-bold text-slate-800">최근 받은 업무</h2>
+                </div>
+                <button 
+                  onClick={() => moveToListWithFilter('RECEIVED')}
+                  className="text-xs font-semibold text-slate-500 hover:text-brandNavy transition-colors flex items-center bg-slate-50 hover:bg-blue-50 px-3 py-1.5 rounded-lg"
+                >
+                  전체보기 <span className="material-symbols-outlined text-sm ml-0.5">chevron_right</span>
+                </button>
+              </div>
+              <div className="p-3 flex-1">
+                {!isLoggedIn ? (
+                  <div className="flex flex-col items-center justify-center h-full py-14">
+                    <p className="text-slate-500 font-medium mb-4">로그인 후 이용 가능합니다.</p>
+                  </div>
+                ) : recentTasks.length > 0 ? (
+                  recentTasks.map((task, index) => (
+                    <div 
+                      key={task.tno} 
+                      onClick={() => openDetail(task.tno)} 
+                      className="group relative flex items-center gap-5 p-5 hover:bg-slate-50 rounded-xl transition-all cursor-pointer border-b border-slate-50 last:border-0 mb-1"
+                    >
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-brandOrange rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-base font-bold text-slate-800 truncate group-hover:text-brandNavy transition-colors">{task.title}</span>
+                          {index === 0 && unreadCount > 0 && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-brandOrange border border-orange-200 uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <span className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px] text-slate-400">schedule</span> 
+                            {task.birth}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px] text-slate-400">account_circle</span> 
+                            {task.writer}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0">{getGradeBadge(task.grade)}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 flex flex-col items-center justify-center h-28 text-slate-300 border-2 border-dashed border-slate-100 rounded-xl m-2 bg-slate-50/50">
+                    <span className="material-symbols-outlined mb-1">check_circle</span>
+                    <span className="text-xs font-medium">받은 업무가 없습니다</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Notices */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-2xl sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-1.5 h-6 bg-brandNavy rounded-full"></div>
+                  <h2 className="text-xl font-bold text-slate-800">최근 공지</h2>
+                </div>
+                <button 
+                  onClick={() => navigate("/board/list")}
+                  className="text-xs font-semibold text-slate-500 hover:text-brandNavy transition-colors flex items-center bg-slate-50 hover:bg-blue-50 px-3 py-1.5 rounded-lg"
+                >
+                  전체보기 <span className="material-symbols-outlined text-sm ml-0.5">chevron_right</span>
+                </button>
+              </div>
+              <div className="p-3 flex-1">
+                {!isLoggedIn ? (
+                  <div className="flex flex-col items-center justify-center h-full py-14">
+                    <p className="text-slate-500 font-medium mb-4">로그인 후 이용 가능합니다.</p>
+                  </div>
+                ) : recentBoards.length > 0 ? (
+                  recentBoards.map((board) => (
+                    <div 
+                      key={board.bno} 
+                      onClick={() => navigate(`/board/read/${board.bno}`)} 
+                      className="group flex items-start gap-4 p-5 hover:bg-slate-50 rounded-xl transition-all cursor-pointer border-b border-slate-50 last:border-0 mb-1"
+                    >
+                      <div className={`mt-0.5 min-w-[40px] h-[40px] rounded-full flex items-center justify-center border group-hover:scale-110 transition-transform ${
+                        board.category === '공지사항' ? 'bg-red-50 text-red-500 border-red-100' :
+                        board.category === '가이드' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                        board.category === 'FAQ' ? 'bg-green-50 text-green-600 border-green-100' :
+                        'bg-slate-50 text-slate-600 border-slate-100'
+                      }`}>
+                        <span className="material-symbols-outlined text-[20px]">
+                          {board.category === '공지사항' ? 'campaign' : 
+                           board.category === '가이드' ? 'menu_book' :
+                           board.category === 'FAQ' ? 'help' : 'info'}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="text-sm font-bold text-slate-700 group-hover:text-brandNavy transition-colors leading-snug">{board.title}</h3>
+                          <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${
+                            board.category === '공지사항' ? 'bg-red-100 text-red-600' :
+                            board.category === '가이드' ? 'bg-blue-100 text-blue-600' :
+                            board.category === 'FAQ' ? 'bg-green-100 text-green-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            {board.category || "일반"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-1 leading-relaxed">{board.content || ''}</p>
+                        <span className="text-[11px] text-slate-400 mt-2 block font-medium">{board.regDate}</span>
                       </div>
                     </div>
-                    <div className="shrink-0">{getGradeBadge(task.grade)}</div>
+                  ))
+                ) : (
+                  <div className="p-4 flex flex-col items-center justify-center h-28 text-slate-300 border-2 border-dashed border-slate-100 rounded-xl m-2 bg-slate-50/50">
+                    <span className="material-symbols-outlined mb-1">check_circle</span>
+                    <span className="text-xs font-medium">새로운 공지사항이 없습니다</span>
                   </div>
-                ))
-              ) : (
-                <p className="text-center py-14 text-gray-400 font-medium">받은 업무가 없습니다.</p>
-              )}
+                )}
+              </div>
             </div>
-            <button
-              onClick={() => moveToListWithFilter('RECEIVED')}
-              className="mt-8 text-center text-sm text-gray-500 hover:text-indigo-600 font-bold border-t pt-5"
-            >
-              전체 업무 보기
-            </button>
           </div>
-
-          {/* 최근 공지사항 */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col min-h-[440px]">
-            <h2 className="text-xl font-bold text-gray-800 mb-8 border-l-4 border-indigo-500 pl-4">최근 공지</h2>
-            <div className="flex-grow space-y-4">
-              {!isLoggedIn ? (
-                <div className="flex flex-col items-center justify-center h-full py-14">
-                  <p className="text-gray-400 font-medium mb-4">로그인 후 이용 가능합니다.</p>
-                </div>
-              ) : recentBoards.length > 0 ? (
-                recentBoards.map((board) => (
-                  <div
-                    key={board.bno}
-                    onClick={() => navigate(`/board/read/${board.bno}`)}
-                    className="flex justify-between items-center p-5 border-b border-gray-50 last:border-0 hover:bg-gray-50 rounded-xl transition-all cursor-pointer"
-                  >
-                    <div className="truncate pr-4">
-                      <h3 className="text-base font-medium text-gray-700 truncate">{board.title}</h3>
-                      <span className="text-sm text-gray-400">{board.regDate}</span>
-                    </div>
-                    <span className={`shrink-0 text-[11px] px-3 py-1 rounded-full border font-bold ${getCategoryStyle(board.category)}`}>
-                      {board.category || "일반"}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center py-14 text-gray-400 font-medium">등록된 공지가 없습니다.</p>
-              )}
-            </div>
-            <button
-              onClick={() => navigate("/board/list")}
-              className="mt-8 text-center text-sm text-gray-500 hover:text-indigo-600 font-bold border-t pt-5"
-            >
-              전체 공지 보기
-            </button>
-          </div>
-        </section>
+        </main>
       </div>
 
       {isModalOpen && selectedTno && (
@@ -221,13 +499,44 @@ const MainPage = () => {
   );
 };
 
-const StatusCard = ({ title, count, color, icon, onClick }) => (
-  <div onClick={onClick} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:shadow-md transition-all">
-    <div>
-      <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-      <p className={`text-4xl font-extrabold ${color}`}>{count}</p>
+const StatusCard = ({ title, count, color, icon, onClick, hasBadge }) => (
+  <div 
+    onClick={onClick} 
+    className="bg-white rounded-xl p-6 shadow-lg border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden"
+  >
+    <div className="flex justify-between items-start mb-4">
+      <div>
+        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+        {hasBadge ? (
+          <div className="flex items-center gap-2">
+            <h3 className="text-4xl font-bold text-slate-800 tracking-tight">{count}</h3>
+            <span className="absolute top-5 right-5 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brandOrange opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-brandOrange"></span>
+            </span>
+          </div>
+        ) : (
+          <h3 className="text-4xl font-bold text-slate-800 tracking-tight">{count}</h3>
+        )}
+      </div>
+      <div className={`p-3 rounded-xl group-hover:bg-brandNavy group-hover:text-white transition-colors ${
+        icon === 'star' ? 'bg-blue-50 text-brandNavy' :
+        icon === 'mail' ? 'bg-orange-50 text-brandOrange' :
+        icon === 'chat' ? 'bg-purple-50 text-purple-600' :
+        'bg-slate-50 text-slate-600'
+      }`}>
+        <span className="material-symbols-outlined text-2xl">{icon}</span>
+      </div>
     </div>
-    <div className="text-3xl opacity-20">{icon}</div>
+    {hasBadge && icon === 'mail' && (
+      <p className="text-xs text-slate-400 font-medium">최근 1시간 내 수신</p>
+    )}
+    {hasBadge && icon === 'chat' && (
+      <p className="text-xs text-slate-400 font-medium">읽지 않은 메시지</p>
+    )}
+    {!hasBadge && icon === 'star' && (
+      <p className="text-xs text-slate-400 font-medium">마감 기한 임박 업무 포함</p>
+    )}
   </div>
 );
 

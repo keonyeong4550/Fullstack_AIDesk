@@ -17,9 +17,9 @@ const TicketPage = () => {
   if (!loginState.email) return null;
 
   return (
-    <div className="w-full bg-gray-100 min-h-screen py-8">
-      <div className="max-w-[1280px] mx-auto px-4">
-        <div className="bg-white shadow-2xl rounded-3xl p-8 min-h-[800px]">
+    <div className="w-full bg-baseBg min-h-screen py-6 lg:py-8">
+      <div className="ui-container">
+        <div className="p-6 lg:p-8 min-h-[600px]">
           <TicketComponent />
         </div>
       </div>

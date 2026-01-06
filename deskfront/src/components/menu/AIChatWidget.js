@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { aiSecretaryApi } from "../../api/aiSecretaryApi";
 import { sttApi } from "../../api/sttApi";
+import { sendMessageRest } from "../../api/chatApi";
 import FilePreview from "../common/FilePreview";
 import "./AIChatWidget.css";
 
@@ -12,17 +13,19 @@ const generateUUID = () => {
     return v.toString(16);
   });
 };
-// ✅ [추가] 오늘로부터 7일 후 날짜 구하기 (YYYY-MM-DD)
-const getDefaultDeadline = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().split("T")[0];
-};
-const AIChatWidget = ({ onClose }) => {
+
+const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
+  // ✅ 오늘로부터 7일 후 날짜 (YYYY-MM-DD)
+  const getDefaultDeadline = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split("T")[0];
+  };
+
   const loginState = useSelector((state) => state.loginSlice);
   const currentUserDept = loginState.department || "Unknown";
   const currentUserEmail = loginState.email;
-  //   const [aiSummary, setAiSummary] = useState("");
+
   const [conversationId] = useState(generateUUID());
   const [messages, setMessages] = useState([
     { role: "assistant", content: "안녕하세요. 어떤 업무를 도와드릴까요?" },
@@ -34,7 +37,7 @@ const AIChatWidget = ({ onClose }) => {
     purpose: "",
     requirement: "",
     grade: "MIDDLE",
-    deadline: getDefaultDeadline(), // ✅ 초기값: 7일 후
+    deadline: getDefaultDeadline(),
     receivers: [],
   });
 
@@ -43,6 +46,7 @@ const AIChatWidget = ({ onClose }) => {
   const audioInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const pdfRef = useRef(null);
+
   const [targetDept, setTargetDept] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -270,6 +274,7 @@ const AIChatWidget = ({ onClose }) => {
 
   const isFormValid = () => {
     const t = currentTicket;
+    // receiver가 없거나 빈 문자열이면 false
     const hasReceivers =
       t.receivers && t.receivers.length > 0 && t.receivers[0] !== "";
     return t.title?.trim() && t.content?.trim() && hasReceivers && t.deadline;
@@ -322,11 +327,28 @@ const AIChatWidget = ({ onClose }) => {
     }
     setIsLoading(true);
     try {
-      await aiSecretaryApi.submitTicket(
+      // 1. 티켓 저장
+      const ticketResponse = await aiSecretaryApi.submitTicket(
         currentTicket,
         selectedFiles,
         currentUserEmail
       );
+
+      // 2. 티켓 저장 성공 시 채팅방에 티켓 미리보기 메시지 전송
+      if (chatRoomId && ticketResponse?.tno) {
+        try {
+          await sendMessageRest(chatRoomId, {
+            content: `티켓이 생성되었습니다: ${currentTicket.title}`,
+            messageType: "TICKET_PREVIEW",
+            ticketId: ticketResponse.tno,
+          });
+        } catch (messageError) {
+          console.error("채팅 메시지 전송 실패:", messageError);
+          // 티켓은 저장되었지만 메시지 전송 실패 - 사용자에게 알림
+          alert("티켓은 저장되었지만 채팅 메시지 전송에 실패했습니다.");
+        }
+      }
+
       setSubmitSuccess(true);
       setTimeout(() => {
         onClose();
@@ -479,7 +501,7 @@ const AIChatWidget = ({ onClose }) => {
             <div className="chat-input-wrapper">
               <button
                 type="button"
-                style={{ marginRight: "10px", fontSize: "20px" }}
+                className="mr-2.5 text-xl"
                 onClick={() => fileInputRef.current.click()}
                 title="파일 첨부"
               >
@@ -664,7 +686,7 @@ const AIChatWidget = ({ onClose }) => {
 
               <div className="form-group">
                 <label>
-                  제목 <span className="text-red-500">*</span>
+                  제목 <span className="ui-required">*</span>
                 </label>
                 <input
                   name="title"
@@ -673,10 +695,9 @@ const AIChatWidget = ({ onClose }) => {
                   onChange={handleManualChange}
                 />
               </div>
-
               <div className="form-group">
                 <label>
-                  요약 <span className="text-red-500">*</span>
+                  요약 <span className="ui-required">*</span>
                 </label>
                 <textarea
                   name="content"
@@ -686,11 +707,10 @@ const AIChatWidget = ({ onClose }) => {
                   onChange={handleManualChange}
                 />
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>
-                    목적 <span className="text-red-500">*</span>
+                    목적 <span className="ui-required">*</span>
                   </label>
                   <textarea
                     name="purpose"
@@ -702,7 +722,7 @@ const AIChatWidget = ({ onClose }) => {
                 </div>
                 <div className="form-group">
                   <label>
-                    상세 <span className="text-red-500">*</span>
+                    상세 <span className="ui-required">*</span>
                   </label>
                   <textarea
                     name="requirement"
@@ -713,11 +733,10 @@ const AIChatWidget = ({ onClose }) => {
                   />
                 </div>
               </div>
-
               <div className="form-row">
                 <div className="form-group">
                   <label>
-                    마감일 <span className="text-red-500">*</span>
+                    마감일 <span className="ui-required">*</span>
                   </label>
                   <input
                     name="deadline"
@@ -742,10 +761,9 @@ const AIChatWidget = ({ onClose }) => {
                   </select>
                 </div>
               </div>
-
               <div className="form-group">
                 <label>
-                  담당자 <span className="text-red-500">*</span>
+                  담당자 <span className="ui-required">*</span>
                 </label>
                 <input
                   name="receivers"
@@ -757,38 +775,16 @@ const AIChatWidget = ({ onClose }) => {
 
               <div className="form-group">
                 <label>첨부 파일 ({selectedFiles.length})</label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: "5px",
-                    marginTop: "10px",
-                  }}
-                >
+                <div className="grid grid-cols-5 gap-1 mt-2.5">
                   {selectedFiles.map((file, idx) => (
                     <div
                       key={idx}
-                      style={{
-                        position: "relative",
-                        aspectRatio: "1/1",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        overflow: "hidden",
-                      }}
+                      className="relative aspect-square border border-baseBorder rounded-lg overflow-hidden"
                     >
                       <FilePreview file={file} isLocal={true} />
                       <button
                         onClick={() => removeFile(idx)}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          right: 0,
-                          background: "rgba(0,0,0,0.5)",
-                          color: "white",
-                          border: "none",
-                          cursor: "pointer",
-                          width: "20px",
-                        }}
+                        className="absolute top-0 right-0 bg-black/50 text-white border-none cursor-pointer w-5 h-5 flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
                       >
                         ×
                       </button>
@@ -796,21 +792,21 @@ const AIChatWidget = ({ onClose }) => {
                   ))}
                 </div>
               </div>
-
-              {submitSuccess ? (
-                <div className="success-box">✅ 티켓 전송 완료</div>
-              ) : (
-                (isCompleted || isFormValid()) && (
-                  <button
-                    className="submit-btn"
-                    onClick={handleSubmitTicket}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "전송 중..." : "🚀 업무 티켓 전송"}
-                  </button>
-                )
-              )}
             </div>
+
+            {submitSuccess ? (
+              <div className="success-box">✅ 티켓 전송 완료</div>
+            ) : (
+              (isCompleted || isFormValid()) && (
+                <button
+                  className="submit-btn"
+                  onClick={handleSubmitTicket}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "전송 중..." : "🚀 업무 티켓 전송"}
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
