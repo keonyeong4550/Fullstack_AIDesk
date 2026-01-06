@@ -49,6 +49,17 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // PDF 생성 라이브러리 (iText7)
+    implementation 'com.itextpdf:itext7-core:7.2.5'
+    // 한글 처리를 위한 라이브러리 (필수)
+    implementation 'com.itextpdf:font-asian:7.2.5'
+
+    // JSON 파싱을 위한 Jackson (이미 있다면 생략 가능)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+//    PDF 의존성 주입
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 }
 
 tasks.named('test') {

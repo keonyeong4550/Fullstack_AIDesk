@@ -43,7 +43,8 @@ public class JWTCheckFilter extends OncePerRequestFilter{
         if (path.startsWith("/api/files/view/") || path.startsWith("/api/files/download/")) {
             return true;
         }
-
+        // [추가] AI 관련 API는 필터 검사 하지 않음 (CORS 필터는 적용됨)
+        if (path.startsWith("/api/ai/")) return true;
         return false;
     }
     @Override // 실제 JWT 검증 처리를 수행. 성공 → SecurityContext에 인증 정보 설정, 실패 → JSON 에러 응답

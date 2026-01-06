@@ -29,14 +29,15 @@ export const aiSecretaryApi = {
     try {
       const formData = new FormData();
       formData.append("file", audioFile);
-      // 필요하다면 conversation_id도 보낼 수 있음
       formData.append("conversation_id", conversationId);
 
       const response = await aiClient.post("/analyze-audio", formData, {
         headers: {
-          "Content-Type": "multipart/form-data", // 파일 전송 필수 헤더
+          "Content-Type": "multipart/form-data",
         },
       });
+      // 위 AIChatWidget.js에서 response.data.transcription 등을 참조하므로
+      // Python 서버가 { "transcription": "..." } 형태로 리턴해줘야 함
       return response.data;
     } catch (error) {
       console.error("Audio Analysis Error:", error);
@@ -104,25 +105,98 @@ export const aiSecretaryApi = {
       throw error;
     }
   },
-  // [수정된 요약 요청 함수]
-  getSummary: async (ticketData) => {
+  // [수정] 요약 요청 함수 (텍스트로 받기)
+  getSummary: async (ticketData, file) => {
     try {
-      const res = await jwtAxios.post(
-        `${API_SERVER_HOST}/api/ai/summarize-report`,
-        ticketData
-      );
+      const formData = new FormData();
 
-      // 🛡️ 방어 로직: 응답이 문자열이 아니라 객체(에러 등)면 처리
-      if (typeof res.data === "object") {
-        console.error("AI 요약 응답이 이상합니다:", res.data);
-        // 에러 메시지가 있다면 그걸 반환, 아니면 기본 문구
-        return res.data.error || "요약 내용을 불러오지 못했습니다.";
+      // 1. 텍스트 데이터 추가
+      formData.append("title", ticketData.title || "");
+      formData.append("content", ticketData.content || "");
+      formData.append("purpose", ticketData.purpose || "");
+      formData.append("requirement", ticketData.requirement || "");
+
+      // 2. 파일이 있다면 추가 (첫 번째 파일만 처리 예시)
+      if (file) {
+        formData.append("file", file);
       }
 
-      return res.data; // 정상 문자열 반환
+      // 3. API 호출 (Content-Type은 axios가 자동으로 multipart로 설정함)
+      const res = await jwtAxios.post(
+        `${API_SERVER_HOST}/api/ai/summary`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      return res.data;
     } catch (err) {
-      console.error("API 호출 에러:", err);
-      return "서버와 연결할 수 없어 요약을 생성하지 못했습니다.";
+      console.error("요약 API 에러:", err);
+      throw err; // 에러를 위로 던져서 위젯에서 처리
     }
+  },
+  downloadPdf: async (
+    ticketData,
+    { file, title, content, purpose, requirement }
+  ) => {
+    try {
+      const formData = new FormData();
+
+      // 텍스트 데이터 추가
+      formData.append("title", ticketData.title || "");
+      formData.append("content", ticketData.content || "");
+      formData.append("purpose", ticketData.purpose || "");
+      formData.append("requirement", ticketData.requirement || "");
+
+      // 파일이 있으면 추가
+      if (file) {
+        formData.append("file", file);
+      }
+
+      const response = await jwtAxios.post(
+        `${API_SERVER_HOST}/api/ai/summarize-report`,
+        formData,
+        {
+          params: {
+            title,
+            content,
+            purpose,
+            requirement,
+          },
+          responseType: "arraybuffer", // PDF 파일 깨짐 방지
+          // headers: {
+          //   "Content-Type": "multipart/form-data", // 파일 전송 헤더
+          // },
+          validateStatus: () => true,
+        }
+      );
+
+      return response.data || response;
+    } catch (error) {
+      console.error("API - PDF 다운로드 오류:", error);
+      throw error;
+    }
+  },
+  // [수정] 요약 객체(파란창)를 그대로 보내 PDF 받기
+  downloadSummaryPdf: async (summary) => {
+    // 1. 서버가 싫어하는 null 값을 빈 문자열("")로 바꿔치기
+    const safeSummary = {
+      ...summary,
+      conclusion: summary.conclusion || "", // conclusion이 null이면 ""로 변경
+    };
+
+    // 2. summary 대신 safeSummary를 전송
+    const res = await jwtAxios.post(
+      `${API_SERVER_HOST}/api/ai/summary-pdf`,
+      safeSummary,
+      {
+        responseType: "arraybuffer",
+        validateStatus: () => true,
+      }
+    );
+    return res;
   },
 };
