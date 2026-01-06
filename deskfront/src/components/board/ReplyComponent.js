@@ -107,7 +107,7 @@ const ReplyComponent = ({ bno }) => {
 
       {/* 2. 댓글 리스트 섹션 */}
       <div className="space-y-4">
-        {serverData.dtoList.map((reply) => (
+        {(serverData.dtoList || []).map((reply) => (
           <div
             key={reply.rno}
             className={`transition-all duration-300 ${reply.parentRno ? 'ml-12' : ''}`}
