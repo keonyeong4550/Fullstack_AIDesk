@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { aiSecretaryApi } from "../../api/aiSecretaryApi";
+import { sttApi } from "../../api/sttApi";  // STT API 추가
 import FilePreview from "../common/FilePreview";
 import "./AIChatWidget.css";
 
@@ -34,11 +35,13 @@ const AIChatWidget = ({ onClose }) => {
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const fileInputRef = useRef(null);
+  const audioInputRef = useRef(null);  // 오디오 파일용 ref 추가
   const [targetDept, setTargetDept] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
+  const [isSttLoading, setIsSttLoading] = useState(false);  // STT 로딩 상태 추가
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +60,84 @@ const AIChatWidget = ({ onClose }) => {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles((prev) => [...prev, ...files]);
+  };
+
+  // STT 처리 함수 추가
+  const handleAudioUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // MP3 파일 검증
+    if (!file.type.includes('audio') && !file.name.endsWith('.mp3')) {
+      alert('MP3 오디오 파일만 업로드 가능합니다.');
+      return;
+    }
+
+    setIsSttLoading(true);
+
+    // 먼저 "음성을 분석 중입니다..." 메시지 표시
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "🎤 음성 파일을 분석하고 있습니다..."
+      },
+    ]);
+
+    try {
+      // STT API 호출
+      const response = await sttApi.uploadAudio(file);
+      const transcribedText = response.text || response.data?.text || '';
+
+      if (transcribedText) {
+        // 이전 "분석 중" 메시지를 제거하고 변환된 텍스트를 AI 메시지로 추가
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          // 마지막 "분석 중" 메시지 제거
+          if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
+            newMessages.pop();
+          }
+          // 변환된 텍스트를 AI 메시지로 추가
+          newMessages.push({
+            role: "assistant",
+            content: transcribedText
+          });
+          return newMessages;
+        });
+      } else {
+        // 변환 실패 메시지
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
+            newMessages.pop();
+          }
+          newMessages.push({
+            role: "assistant",
+            content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요."
+          });
+          return newMessages;
+        });
+      }
+    } catch (error) {
+      console.error("STT Error:", error);
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
+          newMessages.pop();
+        }
+        newMessages.push({
+          role: "assistant",
+          content: "음성 변환 중 오류가 발생했습니다."
+        });
+        return newMessages;
+      });
+    } finally {
+      setIsSttLoading(false);
+      // 파일 입력 초기화
+      if (audioInputRef.current) {
+        audioInputRef.current.value = '';
+      }
+    }
   };
 
   const removeFile = (index) => {
@@ -189,13 +270,33 @@ const AIChatWidget = ({ onClose }) => {
             </div>
 
             <div className="chat-input-wrapper">
+              {/* 클립 버튼 (기존) */}
               <button
                 type="button"
                 style={{ marginRight: "10px", fontSize: "20px" }}
                 onClick={() => fileInputRef.current.click()}
+                title="파일 첨부"
               >
                 📎
               </button>
+
+              {/* 마이크 버튼 (새로 추가) */}
+              <button
+                type="button"
+                style={{
+                  marginRight: "10px",
+                  fontSize: "20px",
+                  opacity: isSttLoading ? 0.5 : 1,
+                  cursor: isSttLoading ? "not-allowed" : "pointer"
+                }}
+                onClick={() => audioInputRef.current.click()}
+                disabled={isSttLoading}
+                title="음성 파일 업로드 (MP3)"
+              >
+                {isSttLoading ? "⏳" : "📜"}
+              </button>
+
+              {/* 파일 입력 (기존) */}
               <input
                 type="file"
                 multiple
@@ -204,20 +305,33 @@ const AIChatWidget = ({ onClose }) => {
                 onChange={handleFileChange}
               />
 
+              {/* 오디오 파일 입력 (새로 추가) */}
+              <input
+                type="file"
+                accept="audio/*,.mp3"
+                className="hidden"
+                ref={audioInputRef}
+                onChange={handleAudioUpload}
+              />
+
+              {/* 입력창 */}
               <input
                 type="text"
                 className="chat-input"
-                placeholder="업무 요청 내용을 입력하세요..."
+                placeholder={isSttLoading ? "음성을 텍스트로 변환 중..." : "업무 요청 내용을 입력하세요..."}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) =>
                   e.key === "Enter" && !e.shiftKey && handleSendMessage()
                 }
+                disabled={isSttLoading}
               />
+
+              {/* 전송 버튼 */}
               <button
                 className="reset-btn"
                 onClick={handleSendMessage}
-                disabled={isLoading || submitSuccess || !inputMessage.trim()}
+                disabled={isLoading || submitSuccess || !inputMessage.trim() || isSttLoading}
               >
                 전송
               </button>
