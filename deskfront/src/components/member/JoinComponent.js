@@ -41,67 +41,60 @@ const JoinComponent = () => {
   };
 
   return (
-    <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100">
-      <div className="flex flex-col items-center mb-10">
-        <h1 className="text-4xl font-black italic tracking-tighter text-gray-900 border-b-8 border-blue-500 pb-2 uppercase">
-          Join Account
-        </h1>
-        <p className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-[10px]">Create your professional account</p>
+    <div className="ui-card p-8 lg:p-10">
+      <div className="flex flex-col items-center mb-8">
+        <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">JOIN</div>
+        <h1 className="ui-title">회원가입</h1>
+        <p className="text-baseMuted text-xs mt-2">전문 계정을 생성하세요</p>
       </div>
 
-      {/* 디자인 유지를 위해 기존 클래스 그대로 적용 */}
-      <form className="space-y-5" onSubmit={handleClickJoin}>
+      <form className="space-y-4" onSubmit={handleClickJoin}>
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Email Address</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">이메일</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
+            className="ui-input"
             name="email" type="text" onChange={handleChange} placeholder="example@domain.com"
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Password</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">비밀번호</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
+            className="ui-input"
             name="pw" type="password" onChange={handleChange} placeholder="••••••••"
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Nickname</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">닉네임</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
+            className="ui-input"
             name="nickname" type="text" onChange={handleChange} placeholder="Your Nickname"
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Department</label>
-          <div className="relative">
-            <select
-              name="department"
-              value={joinParam.department}
-              onChange={handleChange}
-              className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-black text-gray-700 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none"
-            >
-              <option value="DEVELOPMENT">💻 개발팀 (DEVELOPMENT)</option>
-              <option value="SALES">🤝 영업팀 (SALES)</option>
-              <option value="HR">👥 인사팀 (HR)</option>
-              <option value="DESIGN">🎨 디자인팀 (DESIGN)</option>
-              <option value="PLANNING">📝 기획팀 (PLANNING)</option>
-              <option value="FINANCE">💰 재무팀 (FINANCE)</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
-              ▼
-            </div>
-          </div>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">부서</label>
+          <select
+            name="department"
+            value={joinParam.department}
+            onChange={handleChange}
+            className="ui-select"
+          >
+            <option value="DEVELOPMENT">💻 개발팀 (DEVELOPMENT)</option>
+            <option value="SALES">🤝 영업팀 (SALES)</option>
+            <option value="HR">👥 인사팀 (HR)</option>
+            <option value="DESIGN">🎨 디자인팀 (DESIGN)</option>
+            <option value="PLANNING">📝 기획팀 (PLANNING)</option>
+            <option value="FINANCE">💰 재무팀 (FINANCE)</option>
+          </select>
         </div>
 
         <button
-          className="w-full bg-blue-600 text-white p-5 rounded-3xl font-black text-xl hover:bg-gray-900 hover:scale-[1.02] transition-all shadow-xl mt-6 active:scale-95"
+          className="w-full ui-btn-primary py-4 mt-6"
           type="submit"
         >
-          CREATE ACCOUNT
+          계정 생성
         </button>
       </form>
     </div>

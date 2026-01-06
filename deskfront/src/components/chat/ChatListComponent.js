@@ -218,73 +218,85 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
     <>
       <div className="w-full">
         {/* 상단 타이틀 */}
-        <div className="flex justify-between items-center mb-10">
-          <h1 className="text-4xl font-extrabold text-gray-900 border-b-8 border-blue-500 pb-4 inline-block tracking-normal">
-            Chat
-          </h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-chatMuted mb-2">CHAT</div>
+            <h1 className="ui-title">
+              채팅방 목록
+            </h1>
+          </div>
           <button
             onClick={handleCreateChat}
-            className="bg-gray-900 text-white px-8 py-3 rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
+            className="bg-chatNavy text-white px-6 py-2.5 rounded-chat font-semibold text-sm hover:opacity-90 transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
           >
             새 채팅
           </button>
         </div>
 
         {/* 목록 카드 */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 min-h-[600px] flex flex-col">
-          <div className="p-6 bg-gray-900 text-white flex justify-between items-center">
-            <h2 className="text-xl font-black italic uppercase tracking-wider">
-              CHAT ROOM LIST
+        <div className="bg-chatBg rounded-chatLg shadow-chatMd overflow-hidden border border-chatBorder min-h-[600px] flex flex-col">
+          <div className="px-6 py-4 bg-chatSurface border-b border-chatBorder flex justify-between items-center">
+            <h2 className="text-sm font-semibold text-chatText uppercase tracking-wide">
+              채팅방 목록
             </h2>
-            <span className="bg-blue-500 px-6 py-1 rounded-full text-sm font-black italic">
-              TOTAL: {chatRooms.length}
+            <span className="text-xs text-chatMuted font-medium">
+              총 {chatRooms.length}개
             </span>
           </div>
 
-          <div className="flex-grow divide-y divide-gray-100">
+          <div className="flex-grow divide-y divide-chatBorder">
             {loading ? (
-              <div className="p-40 text-center font-black text-gray-300 animate-pulse uppercase">
-                Loading Chat Rooms...
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-base">로딩 중...</p>
               </div>
             ) : error ? (
-              <div className="p-40 text-center text-red-500 font-black uppercase">
-                {error}
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-base">{error}</p>
               </div>
             ) : chatRooms.length === 0 ? (
-              <div className="p-40 text-center text-gray-300 font-black text-2xl uppercase italic">
-                No Chat Rooms
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-lg font-medium mb-2">채팅방이 없습니다</p>
+                <p className="text-sm">새 채팅을 시작해보세요.</p>
               </div>
             ) : (
               chatRooms.map((room) => (
                 <div
                   key={room.id}
                   onClick={() => navigate(`/chat/${room.id}`)}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-blue-50/30 transition-all cursor-pointer"
+                  className="relative flex items-center justify-between px-6 py-4 hover:bg-chatSurface transition-colors cursor-pointer group"
                 >
+                  {/* 선택 인디케이터 (좌측) */}
+                  <div className="absolute left-0 top-0 bottom-0 w-0 group-hover:w-0.5 bg-chatNavy transition-all"></div>
+                  
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-bold text-gray-800 truncate">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h3 className="font-semibold text-base text-chatText truncate">
                         {getChatRoomName(room)}
                       </h3>
                       {room.isGroup && (
-                        <span className="px-3 py-1 rounded-xl text-[11px] font-black bg-gray-100 text-gray-700 uppercase shrink-0">
+                        <span className="px-2 py-0.5 rounded ui-text-2xs font-medium bg-chatSurface text-chatMuted uppercase shrink-0">
                           그룹
                         </span>
                       )}
                     </div>
                     {room.lastMessage && (
                       <>
-                        <p className="text-gray-500 text-sm mb-1 truncate">
+                        <p className="text-sm text-chatMuted mb-1 truncate">
                           {formatLastMessage(room.lastMessage)}
                         </p>
-                        <p className="text-gray-400 text-xs">
-                          {new Date(room.lastMessage.createdAt).toLocaleString()}
+                        <p className="text-xs text-chatMuted">
+                          {new Date(room.lastMessage.createdAt).toLocaleString("ko-KR", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </>
                     )}
                   </div>
                   {room.unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ml-4">
+                    <span className="bg-chatOrange text-white text-xs font-semibold px-2 py-1 rounded-full shrink-0 ml-4 min-w-[20px] text-center">
                       {room.unreadCount}
                     </span>
                   )}

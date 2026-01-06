@@ -89,44 +89,45 @@ const LoginComponent = () => {
   };
 
   return (
-    <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100">
-      <div className="flex flex-col items-center mb-10">
-        <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 border-b-8 border-blue-500 pb-2 uppercase">LOGIN</h1>
+    <div className="ui-card p-8 lg:p-10">
+      <div className="flex flex-col items-center mb-8">
+        <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">LOGIN</div>
+        <h1 className="ui-title">로그인</h1>
       </div>
 
-      <form className="space-y-6" onSubmit={handleClickLogin}>
+      <form className="space-y-4" onSubmit={handleClickLogin}>
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Email Address</label>
-          <input className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 outline-none transition-all shadow-inner" name="email" type="text" value={loginParam.email} onChange={handleChange} />
+          <label className="block text-xs font-semibold text-baseMuted mb-2">이메일</label>
+          <input className="ui-input" name="email" type="text" value={loginParam.email} onChange={handleChange} />
         </div>
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Password</label>
-          <input className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 outline-none transition-all shadow-inner" name="pw" type="password" value={loginParam.pw} onChange={handleChange} />
+          <label className="block text-xs font-semibold text-baseMuted mb-2">비밀번호</label>
+          <input className="ui-input" name="pw" type="password" value={loginParam.pw} onChange={handleChange} />
         </div>
 
-        <div className="flex flex-col gap-4 pt-4">
-          <div className="flex gap-4">
-            <button type="submit" className="flex-1 bg-gray-900 text-white p-5 rounded-3xl font-black text-lg hover:bg-blue-600 transition-all shadow-lg active:scale-95">LOGIN</button>
-            <button type="button" className="flex-1 bg-white text-gray-900 border-2 border-gray-900 p-5 rounded-3xl font-black text-lg hover:bg-gray-50 transition-all shadow-lg active:scale-95" onClick={() => moveToPath("/member/join")}>JOIN</button>
+        <div className="flex flex-col gap-3 pt-4">
+          <div className="flex gap-3">
+            <button type="submit" className="flex-1 ui-btn-primary">로그인</button>
+            <button type="button" className="flex-1 ui-btn-secondary" onClick={() => moveToPath("/member/join")}>회원가입</button>
           </div>
 
           {!showCamera ? (
             <button
               type="button"
               onClick={startFaceLoginCamera}
-              className="w-full bg-blue-50 text-blue-600 p-5 rounded-3xl font-black text-lg border-2 border-dashed border-blue-200 hover:bg-blue-100 transition-all"
+              className="w-full ui-btn-secondary py-3"
             >
-              📷 FACE ID LOGIN
+              📷 얼굴 인식 로그인
             </button>
           ) : (
-            <div className="flex flex-col items-center space-y-4 p-4 bg-blue-50/50 rounded-3xl border-2 border-dashed border-blue-200">
-              <div className="relative w-full aspect-square max-w-[240px] bg-black rounded-full overflow-hidden shadow-2xl border-4 border-white">
+            <div className="flex flex-col items-center space-y-4 p-4 bg-baseSurface rounded-ui border-2 border-dashed border-baseBorder">
+              <div className="relative w-full aspect-square max-w-[240px] bg-black rounded-full overflow-hidden border-4 border-baseBg">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
               </div>
-              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">인식 버튼을 눌러주세요</p>
+              <p className="text-xs font-medium text-baseMuted">인식 버튼을 눌러주세요</p>
               <div className="flex gap-2 w-full">
-                <button type="button" onClick={captureAndLogin} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg">인식하기</button>
-                <button type="button" onClick={stopCamera} className="px-6 py-4 bg-white text-gray-400 rounded-2xl font-black text-xs border border-gray-200">취소</button>
+                <button type="button" onClick={captureAndLogin} className="flex-1 ui-btn-primary text-xs py-2.5">인식하기</button>
+                <button type="button" onClick={stopCamera} className="ui-btn-secondary text-xs py-2.5">취소</button>
               </div>
             </div>
           )}
@@ -134,9 +135,9 @@ const LoginComponent = () => {
         </div>
       </form>
 
-      <div className="relative my-10">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t-2 border-gray-100"></div></div>
-        <div className="relative flex justify-center text-[10px] font-black uppercase"><span className="bg-white px-4 text-gray-300 tracking-[0.3em]">Social Access</span></div>
+      <div className="relative my-8">
+        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-baseBorder"></div></div>
+        <div className="relative flex justify-center text-xs font-semibold"><span className="bg-baseBg px-4 text-baseMuted">소셜 로그인</span></div>
       </div>
       <KakaoLoginComponent />
     </div>

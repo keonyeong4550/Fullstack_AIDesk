@@ -39,57 +39,50 @@ const ReadComponent = ({ bno }) => {
   }, [bno]);
 
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-10 bg-gray-50/30 min-h-screen">
+    <div className="ui-container py-8 space-y-8 bg-baseBg min-h-screen">
       {fetching && <FetchingModal />}
 
-      {/* 1. 상단 타이틀 섹션 (티켓 목록 헤더 스타일) */}
-      <div className="flex justify-between items-end mb-4">
-        <div className="relative inline-block">
-          <span className="text-blue-600 font-black text-xs uppercase tracking-widest mb-3 block italic">
-            {board.category || "General Board"}
-          </span>
-          <h1 className="text-4xl font-black text-[#111827] mb-4 tracking-tighter uppercase">
-            {board.title || "No Title"}
+      {/* 1. 상단 타이틀 섹션 */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">
+        <div>
+          <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">
+            {board.category || "일반 게시판"}
+          </div>
+          <h1 className="ui-title">
+            {board.title || "제목 없음"}
           </h1>
-          {/* 타이틀 아래의 굵은 블루 라인 */}
-          <div className="h-1.5 w-full bg-blue-600 rounded-full shadow-[0_2px_10px_rgba(37,99,235,0.3)]"></div>
         </div>
 
         {/* 작성 정보 섹션 */}
-        <div className="text-right space-y-1 pb-2">
-          <div className="text-sm font-black text-gray-900 italic">
-            WRITER. <span className="text-blue-600 underline decoration-2 underline-offset-4">{board.writer || "Unknown"}</span>
+        <div className="text-right space-y-1">
+          <div className="text-sm font-semibold text-baseText">
+            작성자: <span className="text-brandNavy">{board.writer || "알 수 없음"}</span>
           </div>
-          <div className="text-[11px] font-bold text-gray-300 italic uppercase tracking-widest">
-            REG.DATE: {board.regDate || board.modDate}
+          <div className="text-xs text-baseMuted">
+            작성일: {board.regDate || board.modDate}
           </div>
         </div>
       </div>
 
-      {/* 2. 메인 콘텐츠 카드 (티켓 상세 박스 스타일) */}
-      <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.05)] border border-gray-100 transition-all hover:shadow-[0_25px_60px_rgba(0,0,0,0.08)]">
-        {/* 카드 상단 다크 네이비 바 */}
-        <div className="bg-[#1a1f2c] px-10 py-5 flex justify-between items-center border-b border-gray-800">
-          <h2 className="text-white font-black italic tracking-widest text-xs uppercase opacity-80">Article Detail View</h2>
-          <div className="flex gap-2.5">
-            <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-          </div>
+      {/* 2. 메인 콘텐츠 카드 */}
+      <div className="ui-card overflow-hidden">
+        {/* 카드 헤더 */}
+        <div className="px-6 py-4 bg-baseSurface border-b border-baseBorder flex justify-between items-center">
+          <h2 className="text-sm font-semibold text-baseText uppercase tracking-wide">게시글 상세</h2>
         </div>
 
         {/* 본문 텍스트 영역 */}
-        <div className="p-12 min-h-[450px] bg-gradient-to-b from-white to-gray-50/30">
-          <div className="text-gray-700 leading-[1.8] text-lg font-medium whitespace-pre-wrap break-all">
-            {board.content || "No Content available."}
+        <div className="p-6 lg:p-12 min-h-[450px] bg-baseBg">
+          <div className="text-baseText leading-relaxed text-base whitespace-pre-wrap break-words">
+            {board.content || "내용이 없습니다."}
           </div>
         </div>
 
-        {/* 푸터 버튼 영역 (경계선 강조) */}
-        <div className="bg-white px-10 py-8 flex justify-end gap-4 border-t border-gray-100/60">
+        {/* 푸터 버튼 영역 */}
+        <div className="px-6 lg:px-10 py-6 lg:py-8 bg-baseSurface flex justify-end gap-3 border-t border-baseBorder">
           <button
             onClick={moveToList}
-            className="bg-gray-100 text-gray-400 px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-gray-200 hover:text-gray-600 transition-all duration-300"
+            className="ui-btn-secondary"
           >
             목록으로
           </button>
@@ -97,7 +90,7 @@ const ReadComponent = ({ bno }) => {
           {canModify && (
             <button
               onClick={() => moveToModify(bno)}
-              className="bg-[#111827] text-white px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-gray-200"
+              className="ui-btn-primary"
             >
               수정하기
             </button>
@@ -106,7 +99,7 @@ const ReadComponent = ({ bno }) => {
       </div>
 
       {/* 3. 댓글 영역 */}
-      <div className="mt-16 bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm">
+      <div className="ui-card p-6 lg:p-10">
         <ReplyComponent bno={bno} />
       </div>
     </div>

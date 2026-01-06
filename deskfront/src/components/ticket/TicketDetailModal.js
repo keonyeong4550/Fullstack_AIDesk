@@ -60,7 +60,8 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
         setLoading(false);
       } catch (err) {
         console.error("티켓 상세 로드 실패:", err);
-        alert("조회 실패");
+        const errorMessage = err.response?.data?.message || err.message || "조회 실패";
+        alert(errorMessage);
         onClose();
       }
     };
@@ -76,8 +77,10 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
     onClose
   );
 
+  // 보낸 티켓: personals 배열이 있는 경우
   const isSentType = isWriter && ticket && ticket.personals !== undefined;
-  const isReceivedType = isReceiver && ticket && ticket.pno !== undefined;
+  // 받은 티켓: isReceiver가 true인 경우 (pno는 상태 변경 API 호출 시 필요하지만, UI 표시는 isReceiver만으로 판단)
+  const isReceivedType = isReceiver && ticket;
 
   // 다운로드 확인 창 (displayName을 사용하여 사용자에게 안내)
   const handleDownload = (uuid, fileName, displayName) => {
@@ -94,84 +97,85 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
     );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-[80%] max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 bg-gray-900 text-white">
-          <div className="flex items-center flex-1">
-            <button onClick={onClose} className="mr-4 text-white hover:text-gray-300 text-xl font-black transition-all">←</button>
-            <h2 className="text-xl font-black italic uppercase tracking-wider text-white flex-1 truncate">{ticket.title}</h2>
-            {ticket.grade && <div className="ml-3">{getGradeBadge(ticket.grade)}</div>}
-            <button onClick={() => togglePin(ticket.tno)} className={`ml-4 text-2xl transition-all ${isPinned(ticket.tno) ? "text-yellow-500" : "text-gray-300"}`}>
+    <div className="ui-modal-overlay p-4" onClick={onClose}>
+      <div className="ui-modal-panel w-full max-w-[80%] max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="ui-modal-header flex items-center justify-between">
+          <div className="flex items-center flex-1 gap-3">
+            <button onClick={onClose} className="text-baseMuted hover:text-baseText text-xl font-bold transition-all">←</button>
+            <h2 className="ui-title flex-1 truncate">{ticket.title}</h2>
+            {ticket.grade && <div>{getGradeBadge(ticket.grade)}</div>}
+            <button onClick={() => togglePin(ticket.tno)} className={`text-xl transition-all ${isPinned(ticket.tno) ? "ui-pin-active" : "ui-pin-inactive"}`}>
               {isPinned(ticket.tno) ? "★" : "☆"}
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2 space-y-6">
-              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">요청 요약</h3>
-                <p className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">{ticket.content}</p>
+        <div className="ui-modal-body flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="ui-panel">
+                <h3 className="ui-title mb-4">요청 요약</h3>
+                <p className="text-baseText whitespace-pre-wrap leading-relaxed">{ticket.content}</p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">첨부 파일 ({ticket.files?.length || 0})</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div className="ui-panel">
+                <h3 className="ui-title mb-4">첨부 파일 ({ticket.files?.length || 0})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {ticket.files?.map((file) => (
                     <div
                       key={file.uuid}
                       onClick={() => handleDownload(file.uuid, file.fileName, file.displayName)}
-                      className="flex items-center p-3 bg-white rounded-xl border border-gray-200 cursor-pointer hover:bg-blue-50 transition-all"
+                      className="flex items-center p-3 ui-card cursor-pointer hover:bg-baseSurface transition-all"
                     >
-                      <div style={{ width: "40px", height: "40px", marginRight: "10px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
+                      <div className="w-10 h-10 rounded-ui overflow-hidden flex-shrink-0 mr-3">
                         <FilePreview file={file} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        {/* [수정 포인트] 가공된 displayName 출력 */}
-                        <div className="text-xs font-black truncate" title={file.displayName}>
+                        <div className="text-xs font-semibold truncate" title={file.displayName}>
                           {file.displayName}
                         </div>
-                        <div className="text-[10px] text-gray-400 font-bold">
+                        <div className="ui-text-2xs text-baseMuted">
                           {(file.fileSize / 1024).toFixed(1)} KB
                         </div>
                       </div>
-                      <span className="text-blue-500 font-black ml-2">↓</span>
+                      <span className="text-brandNavy ml-2">↓</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {isSentType && ticket.personals && (
-                <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">수신자 상태</h3>
-                  {ticket.personals.map((p, idx) => (
-                    <div key={idx} className="flex justify-between items-center p-3 mb-2 bg-white rounded-xl border border-gray-200 shadow-sm">
-                      <span className="font-bold text-gray-700">{p.receiver}</span>
-                      <span className="text-xs font-black bg-gray-100 px-3 py-1 rounded-lg">{getStateLabel(p.state)}</span>
-                    </div>
-                  ))}
+                <div className="ui-panel">
+                  <h3 className="ui-title mb-4">수신자 상태</h3>
+                  <div className="space-y-2">
+                    {ticket.personals.map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 ui-card">
+                        <span className="font-semibold text-baseText">{p.receiver}</span>
+                        <span className="ui-badge text-xs">{getStateLabel(p.state)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="col-span-1 space-y-6">
-              <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">세부 정보</h3>
-                <div className="space-y-4 font-bold text-sm">
-                  <div className="flex justify-between"><span>작성자</span><span>{ticket.writer}</span></div>
-                  <div className="flex justify-between"><span>생성일</span><span>{formatDate(ticket.birth)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>마감일</span><span>{formatDate(ticket.deadline)}</span></div>
+            <div className="lg:col-span-1 space-y-6">
+              <div className="ui-panel">
+                <h3 className="ui-title mb-4">세부 정보</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between"><span className="text-baseMuted">작성자</span><span className="text-baseText font-semibold">{ticket.writer}</span></div>
+                  <div className="flex justify-between"><span className="text-baseMuted">생성일</span><span className="text-baseText font-semibold">{formatDate(ticket.birth)}</span></div>
+                  <div className="flex justify-between"><span className="text-baseMuted">마감일</span><span className="ui-deadline">{formatDate(ticket.deadline)}</span></div>
                 </div>
               </div>
 
               {isReceivedType && (
-                <div className="bg-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-                  <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-wide">상태 변경</h3>
+                <div className="ui-panel">
+                  <h3 className="ui-title mb-4">상태 변경</h3>
                   <select
                     value={ticket.state || "NEW"}
                     onChange={(e) => handleStateChange(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl font-bold bg-white focus:border-blue-500 outline-none shadow-sm"
+                    className="ui-select"
                   >
                     <option value="NEW">{getStateLabel("NEW")}</option>
                     <option value="IN_PROGRESS">{getStateLabel("IN_PROGRESS")}</option>
@@ -180,7 +184,7 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
                   </select>
                 </div>
               )}
-              {isWriter && <button onClick={handleDelete} className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black w-full shadow-lg hover:bg-red-700 transition-all uppercase">삭제</button>}
+              {isWriter && <button onClick={handleDelete} className="ui-btn-danger w-full">삭제</button>}
             </div>
           </div>
         </div>

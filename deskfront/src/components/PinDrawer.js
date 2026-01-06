@@ -54,42 +54,44 @@ const PinDrawer = () => {
             <div className="fixed top-[100px] right-0 z-[40]">
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="bg-gray-900 text-white p-4 rounded-l-3xl shadow-2xl hover:bg-blue-600 transition-all flex items-center gap-3 border-y-2 border-l-2 border-blue-500"
+                    className="bg-brandNavy text-white p-3 rounded-l-ui shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
                 >
-                    <span className="font-black italic tracking-tighter">PIN</span>
-                    <span className="bg-blue-500 text-white text-xs px-2.5 py-1 rounded-full font-black shadow-lg">
-                        {pinItems.length}
-                    </span>
+                    <span className="font-semibold text-sm">PIN</span>
+                    {pinItems.length > 0 && (
+                        <span className="ui-badge-notify text-xs px-2 py-0.5">
+                            {pinItems.length}
+                        </span>
+                    )}
                 </button>
             </div>
 
             {/* 슬라이드 드로어 */}
-            <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.1)] z-[100] transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} border-l-4 border-gray-900`}>
-                <div className="p-6 bg-gray-900 text-white flex justify-between items-center">
-                    <h2 className="text-xl font-black italic uppercase tracking-widest">Pinned Works</h2>
-                    <button onClick={() => setIsOpen(false)} className="text-3xl font-black hover:text-blue-400 transition-colors">&times;</button>
+            <div className={`fixed inset-y-0 right-0 w-80 lg:w-96 bg-baseBg shadow-lg z-[100] transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} border-l border-baseBorder`}>
+                <div className="ui-modal-header">
+                    <h2 className="ui-title">고정된 업무</h2>
+                    <button onClick={() => setIsOpen(false)} className="text-xl font-bold text-baseMuted hover:text-baseText transition-colors">&times;</button>
                 </div>
 
-                <div className="p-6 overflow-y-auto h-[calc(100%-80px)] bg-gray-50">
+                <div className="p-4 lg:p-6 overflow-y-auto h-[calc(100%-80px)] bg-baseSurface">
                     {pinItems.length > 0 ? (
                         pinItems.map(item => (
                             <div
                                 key={item.tno}
                                 onClick={() => openTicketModal(item.tno)}
-                                className="mb-4 p-4 bg-white border-2 border-gray-100 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group relative overflow-hidden cursor-pointer"
+                                className="mb-3 p-4 ui-card hover:shadow-md transition-all group relative overflow-hidden cursor-pointer"
                             >
-                                <div className="absolute left-0 top-0 h-full w-2 bg-blue-500"></div>
+                                <div className="absolute left-0 top-0 h-full w-1 bg-brandNavy"></div>
                                 <div className="flex justify-between items-start">
                                     <div className="truncate pr-4">
-                                        <div className="mb-1">{getGradeBadge ? getGradeBadge(item.grade) : <span className="text-[10px] font-black text-blue-500">{item.grade}</span>}</div>
-                                        <div className="text-sm font-black text-gray-800 truncate">{item.title}</div>
+                                        <div className="mb-1">{getGradeBadge ? getGradeBadge(item.grade) : <span className="text-xs font-semibold text-brandNavy">{item.grade}</span>}</div>
+                                        <div className="text-sm font-semibold text-baseText truncate">{item.title}</div>
                                     </div>
                                     <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           togglePin(item.tno);
                                         }}
-                                        className="bg-red-50 text-red-500 p-2 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                        className="bg-red-50 text-red-600 p-1.5 rounded-ui hover:bg-red-600 hover:text-white transition-all"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
@@ -99,9 +101,9 @@ const PinDrawer = () => {
                             </div>
                         ))
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-300 italic font-black">
-                            <span className="text-4xl mb-4">EMPTY</span>
-                            <p>No Pinned Items</p>
+                        <div className="h-full flex flex-col items-center justify-center text-baseMuted">
+                            <span className="text-2xl mb-2">📌</span>
+                            <p className="text-sm">고정된 항목이 없습니다</p>
                         </div>
                     )}
                 </div>

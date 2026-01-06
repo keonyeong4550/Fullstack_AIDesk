@@ -71,36 +71,34 @@ const ChatPage = () => {
     : null;
 
   return (
-    <div className="w-full bg-gray-100 min-h-screen py-8">
-      <div className="max-w-[1280px] mx-auto px-4">
-        <div className="bg-white shadow-2xl rounded-3xl p-8 min-h-[800px]">
-          {!currentUserId ? (
-            <div className="min-h-[800px] flex items-center justify-center">
-              <div className="text-gray-500">로그인이 필요합니다.</div>
-            </div>
-          ) : loading ? (
-            <div className="min-h-[800px] flex items-center justify-center">
-              <div className="text-gray-500">로딩 중...</div>
-            </div>
-          ) : error || !chatRoomInfo ? (
-            <div className="min-h-[800px] flex items-center justify-center flex-col gap-4">
-              <div className="text-gray-500">{error || "존재하지 않는 채팅방입니다."}</div>
-              <button
-                className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg"
-                onClick={() => navigate("/chat")}
-              >
-                목록으로
-              </button>
-            </div>
-          ) : (
-            <ChatRoom
-              chatRoomId={Number(chatRoomId)}
-              currentUserId={currentUserId}
-              otherUserId={otherUserId}
-              chatRoomInfo={chatRoomInfo}
-            />
-          )}
-        </div>
+    <div className="chat-shell w-full bg-chatBg min-h-screen">
+      <div className="max-w-[1200px] mx-auto px-4 lg:px-6 py-6 lg:py-8">
+        {!currentUserId ? (
+          <div className="min-h-[600px] flex items-center justify-center">
+            <div className="text-chatMuted">로그인이 필요합니다.</div>
+          </div>
+        ) : loading ? (
+          <div className="min-h-[600px] flex items-center justify-center">
+            <div className="text-chatMuted">로딩 중...</div>
+          </div>
+        ) : error || !chatRoomInfo ? (
+          <div className="min-h-[600px] flex items-center justify-center flex-col gap-4">
+            <div className="text-chatMuted">{error || "존재하지 않는 채팅방입니다."}</div>
+            <button
+              className="bg-chatNavy text-white px-6 py-3 rounded-chat font-semibold hover:opacity-90 transition-all shadow-chat"
+              onClick={() => navigate("/chat")}
+            >
+              목록으로
+            </button>
+          </div>
+        ) : (
+          <ChatRoom
+            chatRoomId={Number(chatRoomId)}
+            currentUserId={currentUserId}
+            otherUserId={otherUserId}
+            chatRoomInfo={chatRoomInfo}
+          />
+        )}
       </div>
     </div>
   );
