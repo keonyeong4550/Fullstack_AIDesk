@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import useInfiniteChat from "../../hooks/useInfiniteChat";
@@ -18,8 +18,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false); // 이전 메시지 로딩 중
   const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const currentPageRef = useRef(1); // currentPage의 최신 값을 추적
   const pageSize = 20;
   const [aiEnabled, setAiEnabled] = useState(false); // AI 메시지 처리 ON/OFF
 
@@ -43,9 +45,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
+  const lastMessageIdRef = useRef(null); // 마지막 메시지 ID 추적 (새 메시지 감지용)
 
   // 무한 스크롤 훅
-  const { visibleMessages, onScroll, scrollToBottom, setContainerRef, reset } = useInfiniteChat(messages, 30);
+  const { visibleMessages, onScroll: infiniteChatOnScroll, scrollToBottom, setContainerRef, reset } = useInfiniteChat(messages, 30);
 
   // 컨테이너 ref 설정
   useEffect(() => {
@@ -55,7 +58,87 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   // 방 변경 시 초기화
   useEffect(() => {
     reset();
+    setMessages([]);
+    setHasMore(true);
+    setCurrentPage(1);
+    currentPageRef.current = 1;
   }, [chatRoomId, reset]);
+
+  // currentPage ref 동기화
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  // 이전 메시지 로드 함수
+  const loadPreviousMessages = useCallback(async () => {
+    if (!chatRoomId || !currentUserId || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPageRef.current + 1;
+      const response = await getMessages(chatRoomId, { page: nextPage, size: pageSize });
+      
+      if (!response.dtoList || response.dtoList.length === 0) {
+        setHasMore(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      // 백엔드 응답을 프론트엔드 형식으로 변환 (최신순이므로 reverse)
+      const transformedMessages = response.dtoList
+        .reverse()
+        .map((msg) => ({
+          id: msg.id,
+          chatRoomId: msg.chatRoomId,
+          senderId: msg.senderId,
+          senderNickname: msg.senderNickname || msg.senderId,
+          receiverId: chatRoomInfo?.isGroup ? null : (msg.senderId === currentUserId ? otherUserId : currentUserId),
+          content: msg.content,
+          createdAt: msg.createdAt,
+          isRead: true,
+          isTicketPreview: msg.messageType === "TICKET_PREVIEW",
+          ticketId: msg.ticketId,
+          messageSeq: msg.messageSeq,
+        }));
+
+      // 스크롤 위치 보정을 위해 현재 스크롤 위치 저장
+      const container = chatContainerRef.current;
+      const prevScrollHeight = container ? container.scrollHeight : 0;
+      const prevScrollTop = container ? container.scrollTop : 0;
+
+      // 기존 메시지 앞에 추가
+      setMessages((prev) => [...transformedMessages, ...prev]);
+      setCurrentPage(nextPage);
+      setHasMore(response.totalCount > (nextPage * pageSize));
+
+      // 스크롤 위치 보정
+      if (container) {
+        requestAnimationFrame(() => {
+          const newScrollHeight = container.scrollHeight;
+          const heightDiff = newScrollHeight - prevScrollHeight;
+          container.scrollTop = prevScrollTop + heightDiff;
+        });
+      }
+    } catch (err) {
+      console.error("이전 메시지 로드 실패:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [chatRoomId, currentUserId, loadingMore, hasMore, chatRoomInfo, otherUserId, pageSize]);
+
+  // 커스텀 스크롤 핸들러 (무한 스크롤 + 이전 메시지 로드)
+  const handleScroll = (e) => {
+    const el = e.target;
+    if (!el) return;
+
+    // useInfiniteChat의 스크롤 핸들러 호출
+    infiniteChatOnScroll(e);
+
+    // 스크롤이 최상단에 가까우면 이전 메시지 로드
+    if (el.scrollTop < 100 && hasMore && !loadingMore && !loading) {
+      loadPreviousMessages();
+    }
+  };
 
   // 메시지 로드 (초기 로드)
   useEffect(() => {
@@ -84,6 +167,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
         setMessages(transformedMessages);
         setHasMore(response.totalCount > transformedMessages.length);
         setCurrentPage(1);
+        currentPageRef.current = 1;
 
         // 마지막 메시지 읽음 처리
         if (transformedMessages.length > 0) {
@@ -163,10 +247,34 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     };
   }, [chatRoomId, currentUserId]);
 
-  // ✅ 새 메시지 추가 시 맨 아래로 스크롤
+  // ✅ 새 메시지 추가 시 맨 아래로 스크롤 (이전 메시지 로드 시에는 제외)
+  // useInfiniteChat 훅에서 이미 처리하므로 여기서는 제거
+  // 단, WebSocket으로 새 메시지가 왔을 때는 useInfiniteChat이 감지하지 못할 수 있으므로
+  // 마지막 메시지 ID 변경을 추적하여 처리
   useEffect(() => {
-    scrollToBottom();
-  }, [messages.length, scrollToBottom]);
+    // 이전 메시지 로드 중이면 스크롤하지 않음
+    if (loadingMore) return;
+
+    // 메시지가 없으면 스크롤하지 않음
+    if (messages.length === 0) {
+      lastMessageIdRef.current = null;
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage?.id;
+
+    // 마지막 메시지 ID가 변경되었을 때만 스크롤 (새 메시지가 뒤에 추가된 경우)
+    if (lastMessageIdRef.current !== null && lastMessageIdRef.current !== lastMessageId) {
+      // 새 메시지가 추가된 경우에만 스크롤
+      scrollToBottom();
+    } else if (lastMessageIdRef.current === null && messages.length > 0) {
+      // 초기 로드 시
+      scrollToBottom();
+    }
+
+    lastMessageIdRef.current = lastMessageId;
+  }, [messages, loadingMore, scrollToBottom]);
 
   // 메시지 전송
   const handleSendMessage = async () => {
@@ -354,9 +462,15 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     }
   };
 
+  // 1:1 채팅의 경우 상대방 이름 가져오기
+  const otherUserInfo = chatRoomInfo?.participantInfo?.find(
+    (p) => p.email === otherUserId
+  );
+  const otherUserName = otherUserInfo?.nickname || otherUserId || "채팅";
+
   const chatRoomName = chatRoomInfo?.isGroup
     ? chatRoomInfo.name || "그룹 채팅"
-    : otherUserId || "채팅";
+    : otherUserName;
 
   return (
     <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)] overflow-hidden flex flex-col bg-baseBg">
@@ -370,16 +484,16 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
             <h1 className="text-xl lg:text-2xl font-semibold text-baseText truncate">
               {chatRoomName}
             </h1>
-            <div className="flex items-center gap-3 mt-2">
-              {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantIds) && (
-                <span className="text-xs text-baseMuted">
-                  참여자 {chatRoomInfo.participantIds.length}명
-                </span>
-              )}
-              {!chatRoomInfo?.isGroup && (
-                <span className="text-xs text-baseMuted">
-                  {otherUserId || "알 수 없음"}
-                </span>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantInfo) && (
+                <>
+                  <span className="text-xs text-baseMuted">
+                    {chatRoomInfo.participantInfo.map((p) => p.nickname || p.email).join(", ")}
+                  </span>
+                  <span className="text-xs text-baseMuted">
+                    참여자 {chatRoomInfo.participantInfo.length}명
+                  </span>
+                </>
               )}
               <div className={`text-xs flex items-center gap-1 ${connected ? "ui-status-connected" : "ui-status-disconnected"}`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
@@ -413,7 +527,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
         <div className="h-full bg-baseSurface overflow-hidden flex flex-col">
           <div
             ref={chatContainerRef}
-            onScroll={onScroll}
+            onScroll={handleScroll}
             className="h-full overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-3"
           >
             {loading ? (
@@ -426,6 +540,12 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
                 <p className="text-sm mt-2">대화를 시작해보세요.</p>
               </div>
             ) : null}
+
+            {loadingMore && (
+              <div className="text-center text-baseMuted py-4">
+                <p className="text-sm">이전 메시지를 불러오는 중...</p>
+              </div>
+            )}
 
             {Array.isArray(visibleMessages) &&
               visibleMessages.map((msg) => (

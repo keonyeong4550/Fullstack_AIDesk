@@ -1,26 +1,6 @@
 import React from "react";
 
-/**
- * 멤버 검색/선택 모달 컴포넌트
- *
- * @param {boolean} open - 모달 열림 여부
- * @param {string} title - 모달 제목
- * @param {boolean} multi - 다중 선택 여부
- * @param {string} keyword - 검색 키워드
- * @param {Function} onChangeKeyword - 검색 키워드 변경 핸들러
- * @param {Array} results - 검색 결과 배열 [{ email: string, nickname?: string, department?: string }]
- * @param {Array} selected - 선택된 이메일 배열
- * @param {Function} onToggle - 선택 토글 핸들러 (email: string) => void
- * @param {boolean} loading - 로딩 상태
- * @param {string|null} error - 에러 메시지
- * @param {Function} onClose - 모달 닫기 핸들러
- * @param {Function} onConfirm - 확인 버튼 핸들러
- * @param {boolean} showGroupName - 그룹 이름 입력 표시 여부
- * @param {string} groupName - 그룹 이름
- * @param {Function} onChangeGroupName - 그룹 이름 변경 핸들러
- * @param {string} selectedDepartment - 선택된 부서
- * @param {Function} onChangeDepartment - 부서 변경 핸들러
- */
+
 const MemberPickerModal = ({
   open,
   title,
@@ -42,12 +22,12 @@ const MemberPickerModal = ({
 }) => {
   // 부서 목록 및 이름 매핑
   const departments = [
-    { value: "DEVELOPMENT", label: "💻 개발팀", color: "blue" },
-    { value: "SALES", label: "📊 영업팀", color: "green" },
-    { value: "HR", label: "👥 인사팀", color: "purple" },
-    { value: "DESIGN", label: "🎨 디자인팀", color: "pink" },
-    { value: "PLANNING", label: "📝 기획팀", color: "yellow" },
-    { value: "FINANCE", label: "💰 재무팀", color: "indigo" },
+    { value: "DEVELOPMENT", label: "개발", color: "blue" },
+    { value: "SALES", label: "영업", color: "green" },
+    { value: "HR", label: "인사", color: "purple" },
+    { value: "DESIGN", label: "디자인", color: "pink" },
+    { value: "PLANNING", label: "기획", color: "yellow" },
+    { value: "FINANCE", label: "재무", color: "indigo" },
   ];
 
   const getDepartmentLabel = (dept) => {
