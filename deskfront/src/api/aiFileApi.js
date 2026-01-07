@@ -10,10 +10,6 @@ export const aiFileApi = {
     return response.data; // AIFileResponseDTO
   },
 
-  viewFileUrl: (uuid) => {
-    return `${API_SERVER_HOST}/api/ai/file/view/${uuid}`;
-  },
-
   downloadFile: async (uuid, fileName) => {
     const response = await jwtAxios.get(
       `${API_SERVER_HOST}/api/ai/file/download/${uuid}`,

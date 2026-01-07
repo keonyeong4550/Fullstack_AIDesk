@@ -40,8 +40,8 @@ public interface TicketFileRepository extends JpaRepository<TicketFile, String> 
             LEFT JOIN t.personalList tp
             LEFT JOIN tp.receiver r
             WHERE (w.email = :myEmail OR r.email = :myEmail)
-              AND (:fromDt IS NULL OR f.createdAt >= :fromDt)
-              AND (:toDt IS NULL OR f.createdAt <= :toDt)
+              AND (:fromDt IS NULL OR COALESCE(f.createdAt, t.birth) >= :fromDt)
+              AND (:toDt IS NULL OR COALESCE(f.createdAt, t.birth) <= :toDt)
               AND (:counterEmail IS NULL OR w.email = :counterEmail OR r.email = :counterEmail)
               AND (:dept IS NULL OR w.department = :dept OR r.department = :dept)
               AND (

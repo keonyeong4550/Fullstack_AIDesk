@@ -1,5 +1,6 @@
 import React from "react";
 import { aiFileApi } from "../../api/aiFileApi";
+import FilePreview from "../common/FilePreview";
 
 /**
  * results: AIFileResultDTO[]
@@ -30,23 +31,20 @@ const AIFilePanel = ({ results = [] }) => {
               background: "white",
             }}
           >
+            {/* 파일함(`FileBoxComponent`)과 동일한 썸네일 컴포넌트 재사용 */}
             <div
               style={{
                 width: 54,
                 height: 54,
                 flex: "0 0 auto",
                 borderRadius: 10,
-                background: "#111827",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                fontSize: 12,
+                overflow: "hidden",
+                border: "1px solid #e5e7eb",
+                background: "#f9fafb",
               }}
               title={f.fileName}
             >
-              {(f.fileName || "FILE").split(".").pop()?.toUpperCase() || "FILE"}
+              <FilePreview file={{ uuid: f.uuid, fileName: f.fileName }} />
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>

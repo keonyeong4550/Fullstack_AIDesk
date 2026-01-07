@@ -21,6 +21,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -38,6 +41,18 @@ public class AIFileServiceImpl implements AIFileService {
 
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}");
+
+    // 불용어(검색 의미가 약한 단어) - 키워드 오염 방지용
+    private static final Pattern KEYWORD_NOISE_PATTERN = Pattern.compile(
+            "(관련|파일|자료|내역|건|주고받은|주고 받은|주고받기|주고 받기|대화|대화한|얘기|얘기한|전송|전송한|전달|전달한|수신|수신한|" +
+            "찾아|찾아줘|찾아주세요|조회|조회해|조회해줘|조회해주세요|" +
+            "입니다|이에요|해줘|해주세요|좀|그거|이거)"
+    );
+
+    // 닉네임 캐시 (매 요청 DB 전체 스캔 방지)
+    private static final long NICKNAME_CACHE_TTL_MS = 5 * 60 * 1000L; // 5분
+    private volatile List<String> activeNicknamesCache = List.of();
+    private volatile long activeNicknamesCacheAtMs = 0L;
 
     @Override
     public AIFileResponseDTO chat(String receiverEmail, AIFileRequestDTO request) {
@@ -146,7 +161,10 @@ public class AIFileServiceImpl implements AIFileService {
             }
         }
 
-        String kw = filter.keyword != null ? filter.keyword : "";
+        // 키워드 토큰화: 불용어 제거 후 핵심 토큰을 뽑는다.
+        List<String> keywordTokens = extractKeywordTokens(filter.keyword);
+        // DB에는 가장 강한 토큰 1개로 먼저 좁혀서 조회 (성능)
+        String kw = keywordTokens.isEmpty() ? "" : keywordTokens.get(0);
 
         PageRequest pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
 
@@ -172,7 +190,18 @@ public class AIFileServiceImpl implements AIFileService {
                 filter.department,
                 pageable
         );
-        
+
+        // 추가 토큰이 있으면 (AND)로 후처리 필터링 (DB에서 1개 토큰으로 좁힌 결과에 대해)
+        if (keywordTokens.size() > 1 && page != null) {
+            List<TicketFile> filtered = page.getContent().stream()
+                    .filter(f -> matchesAllTokens(f, keywordTokens))
+                    .toList();
+            Page<TicketFile> newPage = new org.springframework.data.domain.PageImpl<>(
+                    filtered, pageable, filtered.size()
+            );
+            return buildResponse(request, newPage);
+        }
+
         return buildResponse(request, page);
     }
     
@@ -241,38 +270,59 @@ public class AIFileServiceImpl implements AIFileService {
         int currentYear = today.getYear();
         int currentMonth = today.getMonthValue();
 
-        // 간단 키워드 기반
-        if (t.contains("오늘")) {
-            return new DateRange(today.atStartOfDay(), today.atTime(LocalTime.MAX));
+        // 간단 키워드 기반 (정규식으로 더 정확하게 매칭)
+        if (Pattern.compile("오늘").matcher(t).find()) {
+            DateRange result = new DateRange(today.atStartOfDay(), today.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 오늘: {}", result);
+            return result;
         }
-        if (t.contains("그제") || t.contains("그저께")) {
+        if (Pattern.compile("그제|그저께").matcher(t).find()) {
             LocalDate d = today.minusDays(2);
-            return new DateRange(d.atStartOfDay(), d.atTime(LocalTime.MAX));
+            DateRange result = new DateRange(d.atStartOfDay(), d.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 그제: {}", result);
+            return result;
         }
-        if (t.contains("어제")) {
+        if (Pattern.compile("어제").matcher(t).find()) {
             LocalDate d = today.minusDays(1);
-            return new DateRange(d.atStartOfDay(), d.atTime(LocalTime.MAX));
+            DateRange result = new DateRange(d.atStartOfDay(), d.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 어제: {}", result);
+            return result;
         }
-        if (t.contains("이번주") || t.contains("이번 주")) {
-            LocalDate start = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        // 주/달은 "달력 기준"으로 계산한다.
+        // - 이번주: 오늘이 속한 주의 월~일 (월요일 시작)
+        // - 지난주/저번주: 그 전 주의 월~일
+        if (Pattern.compile("이번\\s*주").matcher(t).find()) {
+            LocalDate start = today.minusDays(today.getDayOfWeek().getValue() - 1L); // Monday
             LocalDate end = start.plusDays(6);
-            return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            DateRange result = new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 이번주(월~일): {} ~ {}", start, end);
+            return result;
         }
-        if (t.contains("지난주") || t.contains("지난 주") || t.contains("저번주") || t.contains("저번 주")) {
-            LocalDate end = today.minusDays(today.getDayOfWeek().getValue());
-            LocalDate start = end.minusDays(6);
-            return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+        if (Pattern.compile("(지난|저번)\\s*주").matcher(t).find()) {
+            LocalDate thisWeekStart = today.minusDays(today.getDayOfWeek().getValue() - 1L); // Monday
+            LocalDate start = thisWeekStart.minusWeeks(1);
+            LocalDate end = start.plusDays(6);
+            DateRange result = new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 지난주(월~일): {} ~ {}", start, end);
+            return result;
         }
-        if (t.contains("이번달") || t.contains("이번 달")) {
+
+        // - 이번달: 현재 달의 1일~말일
+        // - 지난달/저번달: 이전 달의 1일~말일
+        if (Pattern.compile("이번\\s*달").matcher(t).find()) {
             LocalDate start = today.withDayOfMonth(1);
             LocalDate end = today.withDayOfMonth(today.lengthOfMonth());
-            return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            DateRange result = new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 이번달(1일~말일): {} ~ {}", start, end);
+            return result;
         }
-        if (t.contains("지난달") || t.contains("지난 달") || t.contains("저번달") || t.contains("저번 달")) {
+        if (Pattern.compile("(지난|저번)\\s*달").matcher(t).find()) {
             LocalDate d = today.minusMonths(1);
             LocalDate start = d.withDayOfMonth(1);
             LocalDate end = d.withDayOfMonth(d.lengthOfMonth());
-            return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            DateRange result = new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+            log.info("[Date Parse] 지난달(1일~말일): {} ~ {}", start, end);
+            return result;
         }
         if (t.contains("올해")) {
             LocalDate start = LocalDate.of(currentYear, 1, 1);
@@ -491,6 +541,8 @@ public class AIFileServiceImpl implements AIFileService {
                 .replace("2주일", "")
                 .replace("사흘", "")
                 .replace("나흘", "")
+                .replace("중에", "")
+                .replace("중", "")
                 .trim();
     }
 
@@ -503,30 +555,24 @@ public class AIFileServiceImpl implements AIFileService {
         boolean receiverOnly = t.contains("받은") || t.contains("수신한");
         // "주고받은"은 둘 다 false (전체 조회)
 
-        // 1) 이메일 추출 (상대 이메일)
+        // 1) 상대 식별 (이메일 > 닉네임 부분문자열 매칭)
         String counterEmail = null;
+
+        // 1-1) 이메일이 있으면 최우선
         Matcher m = EMAIL_PATTERN.matcher(t);
         if (m.find()) {
             counterEmail = m.group();
             t = t.replace(counterEmail, " ").trim();
         } else {
-            // 닉네임 -> 이메일 (여러 토큰에서도 찾기)
-            String[] tokens = t.split("\\s+");
-            for (String token : tokens) {
-                String cleaned = token.trim()
-                        .replace("이랑", "")
-                        .replace("랑", "")
-                        .replace("와", "")
-                        .replace("과", "")
-                        .replace("한테", "")
-                        .replace("에게", "");
-                if (!cleaned.isEmpty()) {
-                    Optional<Member> found = memberRepository.findByNickname(cleaned);
-                    if (found.isPresent()) {
-                        counterEmail = found.get().getEmail();
-                        t = t.replace(token, " ").trim();
-                        break;
-                    }
+            // 1-2) 닉네임을 "문장 안에서" 직접 찾는다 (띄어쓰기/님/씨/조사 여부 무관)
+            String matchedNickname = findNicknameSubstring(t);
+            if (matchedNickname != null) {
+                Optional<Member> found = memberRepository.findByNickname(matchedNickname);
+                if (found.isPresent()) {
+                    counterEmail = found.get().getEmail();
+                    // 닉네임 주변의 호칭/조사까지 같이 제거해서 keyword 오염 방지
+                    t = stripNicknameToken(t, matchedNickname).trim();
+                    log.info("[Nickname Parse] 부분문자열 매칭 성공: {} -> {}", matchedNickname, counterEmail);
                 }
             }
         }
@@ -540,9 +586,63 @@ public class AIFileServiceImpl implements AIFileService {
         // 3) 동작 키워드 제거 ("보낸", "받은", "주고받은", "얘기한" 등) - 필터링은 이미 감지했으므로 제거만
         t = t.replaceAll("보낸|받은|주고받은|얘기한|대화한|전송한|전달한|수신한", "").trim();
 
-        // 4) 남은 텍스트는 키워드
-        String keyword = t.trim();
+        // 4) 키워드 정리: 불용어 제거 + 조사/호칭 잔여물 제거
+        t = KEYWORD_NOISE_PATTERN.matcher(t).replaceAll(" ");
+        t = t.replaceAll("(님|씨)(이랑|랑|과|와|한테|에게)?", " "); // "님이랑" 같은 잔여물
+        t = t.replaceAll("\\s+", " ").trim();
+
+        // 5) 남은 텍스트는 키워드
+        String keyword = t;
         return new NaturalFilter(counterEmail, dept, keyword, senderOnly, receiverOnly);
+    }
+
+    /**
+     * 입력 문자열에서 DB에 존재하는 닉네임(활성/승인)을 부분문자열로 찾아 반환.
+     * - 가장 긴 닉네임 우선(예: "안은지" vs "은지" 같은 충돌 방지)
+     * - 조사/호칭이 붙어있어도(안은지님이랑/안은지씨/안은지랑) "안은지" 자체가 포함되면 매칭됨
+     */
+    private String findNicknameSubstring(String text) {
+        if (text == null) return null;
+        String t = text.trim();
+        if (t.isEmpty()) return null;
+
+        List<String> nicknames = getActiveNicknamesCached();
+        for (String nick : nicknames) {
+            if (nick == null) continue;
+            String n = nick.trim();
+            if (n.length() < 2) continue;
+            if (t.contains(n)) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    private List<String> getActiveNicknamesCached() {
+        long now = System.currentTimeMillis();
+        List<String> cached = activeNicknamesCache;
+        if (!cached.isEmpty() && (now - activeNicknamesCacheAtMs) < NICKNAME_CACHE_TTL_MS) {
+            return cached;
+        }
+
+        synchronized (this) {
+            long now2 = System.currentTimeMillis();
+            List<String> cached2 = activeNicknamesCache;
+            if (!cached2.isEmpty() && (now2 - activeNicknamesCacheAtMs) < NICKNAME_CACHE_TTL_MS) {
+                return cached2;
+            }
+            try {
+                List<String> loaded = memberRepository.findAllActiveNicknames();
+                loaded.sort(Comparator.comparingInt(String::length).reversed()); // 가장 긴 닉네임 우선
+                activeNicknamesCache = loaded;
+                activeNicknamesCacheAtMs = now2;
+                return loaded;
+            } catch (Exception e) {
+                log.warn("[Nickname Cache] 닉네임 캐시 로드 실패: {}", e.getMessage());
+                // 실패 시 기존 캐시(있으면) 유지
+                return activeNicknamesCache;
+            }
+        }
     }
 
     private Department parseDepartment(String text) {
@@ -560,32 +660,80 @@ public class AIFileServiceImpl implements AIFileService {
 
     private String removeDepartmentToken(String text) {
         if (text == null) return "";
-        return text
-                .replace("DESIGN", " ")
-                .replace("DEVELOPMENT", " ")
-                .replace("SALES", " ")
-                .replace("HR", " ")
-                .replace("FINANCE", " ")
-                .replace("PLANNING", " ")
-                .replace("디자인팀", " ")
-                .replace("디자인 부서", " ")
-                .replace("디자인", " ")
-                .replace("개발팀", " ")
-                .replace("개발 부서", " ")
-                .replace("개발", " ")
-                .replace("영업팀", " ")
-                .replace("영업 부서", " ")
-                .replace("영업", " ")
-                .replace("인사팀", " ")
-                .replace("인사 부서", " ")
-                .replace("인사", " ")
-                .replace("재무팀", " ")
-                .replace("재무 부서", " ")
-                .replace("재무", " ")
-                .replace("기획팀", " ")
-                .replace("기획 부서", " ")
-                .replace("기획", " ")
-                .trim();
+        String t = text;
+
+        // 영문 부서 토큰
+        t = t.replaceAll("(?i)\\bDESIGN\\b", " ")
+                .replaceAll("(?i)\\bDEVELOPMENT\\b", " ")
+                .replaceAll("(?i)\\bSALES\\b", " ")
+                .replaceAll("(?i)\\bHR\\b", " ")
+                .replaceAll("(?i)\\bFINANCE\\b", " ")
+                .replaceAll("(?i)\\bPLANNING\\b", " ");
+
+        // 한글 부서 토큰 + 조사까지 같이 제거 (ex: "디자인팀이랑", "개발팀과")
+        t = t.replaceAll("디자인(팀|\\s*부서)?(이랑|랑|과|와)?", " ")
+                .replaceAll("개발(팀|\\s*부서)?(이랑|랑|과|와)?", " ")
+                .replaceAll("영업(팀|\\s*부서)?(이랑|랑|과|와)?", " ")
+                .replaceAll("인사(팀|\\s*부서)?(이랑|랑|과|와)?", " ")
+                .replaceAll("재무(팀|\\s*부서)?(이랑|랑|과|와)?", " ")
+                .replaceAll("기획(팀|\\s*부서)?(이랑|랑|과|와)?", " ");
+
+        return t.replaceAll("\\s+", " ").trim();
+    }
+
+    private String stripNicknameToken(String text, String nickname) {
+        if (text == null || nickname == null || nickname.isBlank()) return text == null ? "" : text;
+        String n = Pattern.quote(nickname.trim());
+        // 닉네임 + 호칭/조사 패턴을 먼저 제거 (예: "안은지님이랑")
+        String t = text.replaceAll(n + "(님|씨)?(이랑|랑|과|와|한테|에게)?", " ");
+        // 그래도 남으면 닉네임 자체 제거
+        t = t.replaceAll(n, " ");
+        return t.replaceAll("\\s+", " ");
+    }
+
+    private List<String> extractKeywordTokens(String keyword) {
+        if (keyword == null) return List.of();
+        String t = keyword.trim();
+        if (t.isEmpty()) return List.of();
+
+        // 불용어 제거/정리
+        t = KEYWORD_NOISE_PATTERN.matcher(t).replaceAll(" ");
+        t = t.replaceAll("(님|씨)(이랑|랑|과|와|한테|에게)?", " ");
+        t = t.replaceAll("[^\\p{L}\\p{N}\\s._-]", " "); // 문자/숫자/공백/일부 기호만 유지
+        t = t.replaceAll("\\s+", " ").trim();
+
+        if (t.isEmpty()) return List.of();
+
+        String[] parts = t.split("\\s+");
+        List<String> tokens = new ArrayList<>();
+        for (String p : parts) {
+            String s = p.trim();
+            if (s.isEmpty()) continue;
+            if (s.length() < 2) continue; // 너무 짧은 토큰 제외
+            tokens.add(s);
+        }
+        // 긴 토큰 우선 (DB 1차 필터에 유리)
+        tokens.sort((a, b) -> Integer.compare(b.length(), a.length()));
+        return tokens;
+    }
+
+    private boolean matchesAllTokens(TicketFile f, List<String> tokens) {
+        if (f == null || tokens == null || tokens.isEmpty()) return true;
+        String haystack = (
+                (f.getFileName() == null ? "" : f.getFileName()) + " " +
+                (f.getWriter() == null ? "" : f.getWriter()) + " " +
+                (f.getReceiver() == null ? "" : f.getReceiver()) + " " +
+                (f.getTicket() != null && f.getTicket().getTitle() != null ? f.getTicket().getTitle() : "") + " " +
+                (f.getTicket() != null && f.getTicket().getContent() != null ? f.getTicket().getContent() : "")
+        ).toLowerCase(Locale.ROOT);
+
+        for (String t : tokens) {
+            if (t == null || t.isBlank()) continue;
+            if (!haystack.contains(t.toLowerCase(Locale.ROOT))) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
