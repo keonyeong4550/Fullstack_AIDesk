@@ -29,10 +29,20 @@ export const aiSecretaryApi = {
       if (file) {
         formData.append("file", file);
       }
-      formData.append("title", ticketData.title || "");
-      formData.append("content", ticketData.content || "");
-      formData.append("purpose", ticketData.purpose || "");
-      formData.append("requirement", ticketData.requirement || "");
+
+      const data = {
+        title: ticketData.title || "",
+        shortSummary: ticketData.content || "", // content -> shortSummary
+        overview: ticketData.purpose || "",    // purpose -> overview
+        details: ticketData.requirement || "", // requirement -> details
+        attendees: ticketData.receivers || [], // receivers -> attendees
+        deadline: ticketData.deadline || null,
+      };
+
+       formData.append(
+              "data",
+              new Blob([JSON.stringify(data)], { type: "application/json" })
+            );
 
       const response = await jwtAxios.post(
         `${API_SERVER_HOST}/api/ai/summary`,
@@ -79,10 +89,20 @@ export const aiSecretaryApi = {
       if (file) {
         formData.append("file", file);
       }
-      formData.append("title", ticketData.title || "");
-      formData.append("content", ticketData.content || "");
-      formData.append("purpose", ticketData.purpose || "");
-      formData.append("requirement", ticketData.requirement || "");
+
+      const data = {
+              title: ticketData.title || "",
+              shortSummary: ticketData.content || "",
+              overview: ticketData.purpose || "",
+              details: ticketData.requirement || "",
+              attendees: ticketData.receivers || [],
+              deadline: ticketData.deadline || null,
+            };
+
+      formData.append(
+            "data",
+            new Blob([JSON.stringify(data)], { type: "application/json" })
+          );
 
       const response = await jwtAxios.post(
         `${API_SERVER_HOST}/api/ai/summarize-report`,

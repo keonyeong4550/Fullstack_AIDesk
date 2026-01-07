@@ -24,12 +24,16 @@ public class AiController {
     @PostMapping(value = "/summary")
     public ResponseEntity<MeetingMinutesDTO> getReportSummary(
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "purpose", required = false) String purpose,
-            @RequestParam(value = "requirement", required = false) String requirement
+            @RequestPart(value = "data") MeetingMinutesDTO data // JSON 데이터 수신
     ) {
-        MeetingMinutesDTO result = ollamaService.getMeetingInfoFromAi(file, title, content, purpose, requirement);
+        log.info("AI Summary Request: {}", data);
+        MeetingMinutesDTO result = ollamaService.getMeetingInfoFromAi(
+                file,
+                data.getTitle(),
+                data.getShortSummary(),
+                data.getOverview(),
+                data.getDetails()
+        );
         return ResponseEntity.ok(result);
     }
 
@@ -37,13 +41,11 @@ public class AiController {
     @PostMapping("/summarize-report")
     public ResponseEntity<?> downloadMeetingPdf(
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestParam(value = "title", required = false) String title,
-            @RequestParam(value = "content", required = false) String content,
-            @RequestParam(value = "purpose", required = false) String purpose,
-            @RequestParam(value = "requirement", required = false) String requirement
+            @RequestPart(value = "data") MeetingMinutesDTO data
     ) {
         // 1. AI 요약 실행 (파일이 있으면 파일 내용도 포함해서 분석)
-        MeetingMinutesDTO meetingData = ollamaService.getMeetingInfoFromAi(file, title, content, purpose, requirement);
+        MeetingMinutesDTO meetingData = ollamaService.getMeetingInfoFromAi(
+                file, data.getTitle(), data.getShortSummary(), data.getOverview(), data.getDetails());
 
         // 2. PDF 바이너리 생성
         byte[] pdfBytes = ollamaService.generatePdf(meetingData);
