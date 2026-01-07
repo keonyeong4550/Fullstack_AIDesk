@@ -58,58 +58,65 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .totalCount(result.getTotalElements())
                 .build();
     }
-    
+
     @Override
     public ChatMessageDTO sendMessage(Long roomId, ChatMessageCreateDTO createDTO, String senderId) {
         // 채팅방 확인
         ChatRoom room = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new IllegalArgumentException("Chat room not found: " + roomId));
-        
+
         // 참여자 확인
         if (!chatParticipantRepository.existsByChatRoomIdAndUserIdAndActive(roomId, senderId)) {
             throw new IllegalArgumentException("User is not a participant of this room");
         }
-        
+
         // AI 메시지 처리 (선택적)
         String finalContent = createDTO.getContent();
         boolean ticketTrigger = false;
-        
-        // AI 처리 수행 (서버 설정 및 프론트엔드 요청에 따라)
+
         if (createDTO.getAiEnabled() != null && createDTO.getAiEnabled()) {
             AiMessageProcessor.ProcessResult aiResult = aiMessageProcessor.processMessage(
-                    createDTO.getContent(), 
+                    createDTO.getContent(),
                     createDTO.getAiEnabled()
             );
             finalContent = aiResult.getProcessedContent();
             ticketTrigger = aiResult.isTicketTrigger();
-            
-            // 원문 메시지 참조 제거 (가비지 컬렉션 대상)
-            // finalContent는 이미 처리된 메시지이므로 원문과 분리됨
         }
-        
+
         // messageSeq 생성
         Long maxSeq = chatMessageRepository.findMaxMessageSeqByChatRoomId(roomId);
         Long newSeq = maxSeq + 1;
-        
-        // 메시지 생성 (AI 처리된 content 사용)
+
+        // 메시지 생성
         ChatMessage message = ChatMessage.builder()
                 .chatRoom(room)
                 .messageSeq(newSeq)
                 .senderId(senderId)
                 .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
-                .content(finalContent) // AI 처리된 메시지 또는 원문
+                .content(finalContent)
                 .ticketId(createDTO.getTicketId())
                 .build();
-        
+
         message = chatMessageRepository.save(message);
-        
-        // 채팅방의 lastMsg 업데이트 (AI 처리된 메시지 사용)
+
+        // 채팅방의 lastMsg 업데이트
         room.updateLastMessage(newSeq, finalContent);
-        
+
+        // 발신자의 lastReadSeq 업데이트
+        ChatParticipant senderParticipant = chatParticipantRepository
+                .findByChatRoomIdAndUserId(roomId, senderId)
+                .orElse(null);
+
+        if (senderParticipant != null) {
+            senderParticipant.markRead(newSeq);
+            log.info("[Chat] 발신자 자동 읽음 처리 | roomId={} | senderId={} | messageSeq={}",
+                    roomId, senderId, newSeq);
+        }
+
         // DTO 생성 시 ticketTrigger 포함
         ChatMessageDTO dto = toChatMessageDTO(message);
         dto.setTicketTrigger(ticketTrigger);
-        
+
         return dto;
     }
     

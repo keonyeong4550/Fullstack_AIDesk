@@ -205,7 +205,7 @@ const MainPage = () => {
                 {isLoggedIn ? (
                   <>
                     안녕하세요, {displayName}님 <br />
-                    <span className="text-gradient-brand">오늘의 업무를 시작해볼까요?</span>
+                    <span className="text-5xl text-gradient-brand">오늘의 업무를 시작해볼까요?</span>
                   </>
                 ) : (
                   <>
@@ -218,7 +218,7 @@ const MainPage = () => {
                 AI 챗봇과 대화하며 복잡한 업무 요청서를 자동으로 생성하세요. <br className="hidden lg:block" />
                 {isLoggedIn && (
                   <>
-                    오늘 처리해야 할 중요한 업무가 <strong className="text-[#ff8a2a] font-semibold">{pinItems.length}건</strong> 있습니다.
+                     {displayName}님이 고정해두신 중요한 업무가 <strong className="text-[#ff8a2a] font-semibold">{pinItems.length}건</strong> 있습니다.
                   </>
                 )}
               </p>
