@@ -58,143 +58,152 @@ const MemberPickerModal = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+      className="ui-modal-overlay"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl"
+        className="ui-modal-panel max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-2xl font-black mb-6 text-[#111827] uppercase tracking-tight">
-          {title}
-        </h2>
-
-        {showGroupName && (
-          <div className="mb-6">
-            <label className="block text-sm font-bold mb-2 text-gray-700 uppercase tracking-wide">
-              그룹 이름
-            </label>
-            <input
-              type="text"
-              value={groupName}
-              onChange={(e) => onChangeGroupName?.(e.target.value)}
-              placeholder="그룹 채팅방 이름을 입력하세요"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        )}
-
-        <div className="mb-6">
-          <label className="block text-sm font-bold mb-2 text-gray-700 uppercase tracking-wide">
-            참여자 선택 (복수 선택 가능)
-          </label>
-
-          {/* 부서 카테고리 버튼 */}
-          <div className="mb-3">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => onChangeDepartment?.("")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  selectedDepartment === ""
-                    ? "bg-[#111827] text-white shadow-md"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                전체
-              </button>
-              {departments.map((dept) => (
-                <button
-                  key={dept.value}
-                  type="button"
-                  onClick={() => onChangeDepartment?.(dept.value)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    selectedDepartment === dept.value
-                      ? "bg-[#111827] text-white shadow-md"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {dept.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <input
-            type="text"
-            value={keyword}
-            onChange={(e) => onChangeKeyword(e.target.value)}
-            placeholder="사용자 검색 (선택사항)"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
-            disabled={loading}
-          />
-
-          {loading && (
-            <div className="p-4 text-center text-gray-500 text-sm">검색 중...</div>
-          )}
-
-          {error && (
-            <div className="p-4 text-center text-red-500 text-sm">{error}</div>
-          )}
-
-          {!loading && !error && (
-            <div className="max-h-60 overflow-y-auto border-2 border-gray-200 rounded-xl">
-              {!selectedDepartment && keyword.trim().length < 2 ? (
-                <div className="p-4 text-center text-gray-400 text-sm">
-                  부서를 선택하거나 검색어를 입력해주세요.
-                </div>
-              ) : results.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">검색 결과가 없습니다.</div>
-              ) : (
-                results.map((user) => (
-                  <div
-                    key={user.email}
-                    onClick={() => onToggle(user.email)}
-                    className={`p-4 border-b border-gray-100 cursor-pointer transition-colors ${
-                      selected.includes(user.email)
-                        ? "bg-blue-50 border-blue-200"
-                        : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">
-                          {user.nickname || user.email}
-                        </div>
-                        <div className="text-sm text-gray-500 mb-1">{user.email}</div>
-                        {user.department && (
-                          <div className="text-xs text-gray-400">
-                            {getDepartmentLabel(user.department)}
-                          </div>
-                        )}
-                      </div>
-                      {selected.includes(user.email) && (
-                        <span className="text-blue-600 font-bold text-lg">✓</span>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {selected.length > 0 && (
-            <div className="mt-3 text-sm text-gray-600 font-medium">
-              선택된 사용자: {selected.length}명
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-3">
+        <div className="ui-modal-header">
+          <h2 className="ui-title">{title}</h2>
           <button
             onClick={onClose}
-            className="flex-1 bg-gray-100 text-gray-400 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-gray-200 hover:text-gray-600 transition-all duration-300"
+            className="text-baseMuted hover:text-baseText text-xl font-bold leading-none w-8 h-8 flex items-center justify-center"
+            aria-label="닫기"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="ui-modal-body space-y-4">
+          {showGroupName && (
+            <div>
+              <label className="block text-xs font-semibold text-baseMuted mb-2">
+                그룹 이름
+              </label>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => onChangeGroupName?.(e.target.value)}
+                placeholder="그룹 채팅방 이름을 입력하세요"
+                className="ui-input"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-baseMuted mb-2">
+              참여자 선택 (복수 선택 가능)
+            </label>
+
+            {/* 부서 카테고리 버튼 */}
+            <div className="mb-3">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onChangeDepartment?.("")}
+                  className={`px-3 py-1.5 rounded-ui text-xs font-semibold transition-all ${
+                    selectedDepartment === ""
+                      ? "bg-brandNavy text-white shadow-chat"
+                      : "bg-baseSurface text-baseMuted hover:text-baseText"
+                  }`}
+                >
+                  전체
+                </button>
+                {departments.map((dept) => (
+                  <button
+                    key={dept.value}
+                    type="button"
+                    onClick={() => onChangeDepartment?.(dept.value)}
+                    className={`px-3 py-1.5 rounded-ui text-xs font-semibold transition-all ${
+                      selectedDepartment === dept.value
+                        ? "bg-brandNavy text-white shadow-chat"
+                        : "bg-baseSurface text-baseMuted hover:text-baseText"
+                    }`}
+                  >
+                    {dept.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <input
+              type="text"
+              value={keyword}
+              onChange={(e) => onChangeKeyword(e.target.value)}
+              placeholder="사용자 검색 (선택사항)"
+              className="ui-input mb-3"
+              disabled={loading}
+            />
+
+            {loading && (
+              <div className="p-4 text-center text-baseMuted text-sm">검색 중...</div>
+            )}
+
+            {error && (
+              <div className="p-4 text-center text-red-600 text-sm">{error}</div>
+            )}
+
+            {!loading && !error && (
+              <div className="max-h-60 overflow-y-auto ui-card border-2">
+                {!selectedDepartment && keyword.trim().length < 2 ? (
+                  <div className="p-4 text-center text-baseMuted text-sm">
+                    부서를 선택하거나 검색어를 입력해주세요.
+                  </div>
+                ) : results.length === 0 ? (
+                  <div className="p-4 text-center text-baseMuted">검색 결과가 없습니다.</div>
+                ) : (
+                  results.map((user) => (
+                    <div
+                      key={user.email}
+                      onClick={() => onToggle(user.email)}
+                      className={`p-4 border-b border-baseBorder cursor-pointer transition-colors ${
+                        selected.includes(user.email)
+                          ? "bg-baseSurface border-brandNavy"
+                          : "hover:bg-baseSurface"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-baseText">
+                            {user.nickname || user.email}
+                          </div>
+                          <div className="text-sm text-baseMuted mb-1">{user.email}</div>
+                          {user.department && (
+                            <div className="text-xs text-baseMuted">
+                              {getDepartmentLabel(user.department)}
+                            </div>
+                          )}
+                        </div>
+                        {selected.includes(user.email) && (
+                          <span className="text-brandNavy font-bold text-lg">✓</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {selected.length > 0 && (
+              <div className="mt-3 text-sm text-baseMuted font-medium">
+                선택된 사용자: {selected.length}명
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="ui-modal-footer">
+          <button
+            onClick={onClose}
+            className="ui-btn-secondary flex-1"
           >
             취소
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 bg-[#111827] text-white px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-gray-200"
+            className="ui-btn-primary flex-1"
           >
             확인
           </button>

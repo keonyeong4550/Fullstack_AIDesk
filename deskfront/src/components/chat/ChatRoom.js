@@ -5,6 +5,7 @@ import useInfiniteChat from "../../hooks/useInfiniteChat";
 import MemberPickerModal from "./MemberPickerModal";
 import TicketConfirmModal from "./TicketConfirmModal";
 import AIChatWidget from "../menu/AIChatWidget";
+import TicketDetailModal from "../ticket/TicketDetailModal";
 import { searchMembers } from "../../api/memberApi";
 import { getMessages, sendMessageRest, markRead, leaveRoom, inviteUsers } from "../../api/chatApi";
 import chatWsClient from "../../api/chatWs";
@@ -35,6 +36,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   // 티켓 작성 모달 관련 상태
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  
+  // 티켓 상세 모달 관련 상태
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [isTicketDetailModalOpen, setIsTicketDetailModalOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -214,16 +219,18 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     }
   };
 
-  // ✅ 티켓 미리보기 클릭(로컬 목업)
+  // ✅ 티켓 미리보기 클릭 - 티켓 상세 모달 띄우기
   const handleTicketPreviewClick = (ticketId) => {
-    // 나중에 getTicketInfo(ticketId)로 교체하면 됨
-    alert(
-      `티켓 정보(목업)\n\n` +
-        `ticketId: ${ticketId}\n` +
-        `보낸 사람: ${otherUserId || "someone@test.com"}\n` +
-        `받는 사람: ${currentUserId}\n` +
-        `생성일: ${new Date().toLocaleString()}`
-    );
+    if (ticketId) {
+      setSelectedTicketId(ticketId);
+      setIsTicketDetailModalOpen(true);
+    }
+  };
+  
+  // ✅ 티켓 상세 모달 닫기
+  const handleCloseTicketDetailModal = () => {
+    setIsTicketDetailModalOpen(false);
+    setSelectedTicketId(null);
   };
 
   // ✅ Enter 키 처리
@@ -352,188 +359,171 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     : otherUserId || "채팅";
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-gray-50/30">
+    <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)] overflow-hidden flex flex-col bg-chatBg">
       {/* Header */}
-      <div className="shrink-0 max-w-7xl mx-auto w-full p-8 pb-4">
-        <div className="flex justify-between items-end">
-          <div className="relative inline-block">
-            <span className="text-blue-600 font-black text-xs uppercase tracking-widest mb-3 block italic">
-              {chatRoomInfo?.isGroup ? "Group Chat" : "Direct Message"}
-            </span>
-            <h1 className="text-4xl font-black text-[#111827] mb-4 tracking-tighter uppercase">
+      <div className="shrink-0 w-full px-4 lg:px-6 py-4 lg:py-6 border-b border-chatBorder bg-chatBg">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-xs uppercase tracking-widest text-chatMuted mb-1">
+              {chatRoomInfo?.isGroup ? "그룹 채팅" : "1:1 채팅"}
+            </div>
+            <h1 className="text-xl lg:text-2xl font-semibold text-chatText truncate">
               {chatRoomName}
             </h1>
-            <div className="h-1.5 w-full bg-blue-600 rounded-full shadow-[0_2px_10px_rgba(37,99,235,0.3)]"></div>
+            <div className="flex items-center gap-3 mt-2">
+              {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantIds) && (
+                <span className="text-xs text-chatMuted">
+                  참여자 {chatRoomInfo.participantIds.length}명
+                </span>
+              )}
+              {!chatRoomInfo?.isGroup && (
+                <span className="text-xs text-chatMuted">
+                  {otherUserId || "알 수 없음"}
+                </span>
+              )}
+              <div className={`text-xs flex items-center gap-1 ${connected ? "ui-status-connected" : "ui-status-disconnected"}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                {connected ? "연결됨" : "연결 끊김"}
+              </div>
+            </div>
           </div>
 
-          {/* 오른쪽 정보 및 버튼 */}
-          <div className="flex flex-col items-end gap-3 pb-2">
-            <div className="text-right space-y-1">
-              <div className="text-sm font-black text-gray-900 italic">
-                {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantIds) && (
-                  <span>
-                    PARTICIPANTS.{" "}
-                    <span className="text-blue-600 underline decoration-2 underline-offset-4">
-                      {chatRoomInfo.participantIds.length}명
-                    </span>
-                  </span>
-                )}
-                {!chatRoomInfo?.isGroup && (
-                  <span>
-                    TO.{" "}
-                    <span className="text-blue-600 underline decoration-2 underline-offset-4">
-                      {otherUserId || "Unknown"}
-                    </span>
-                  </span>
-                )}
-              </div>
-
-              {/* 연결 상태 */}
-              <div className={`text-[11px] font-bold italic uppercase tracking-widest ${connected ? "text-green-600" : "text-red-600"}`}>
-                ● {connected ? "CONNECTED" : "DISCONNECTED"}
-              </div>
-            </div>
-
-            {/* 액션 버튼들 */}
-            <div className="flex gap-2">
-              {chatRoomInfo?.isGroup && (
-                <button
-                  onClick={handleOpenInviteModal}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-xl font-black text-xs uppercase tracking-[0.15em] hover:bg-blue-700 hover:-translate-y-0.5 transition-all duration-300 shadow-md"
-                >
-                  사용자 초대
-                </button>
-              )}
+          {/* 액션 버튼들 */}
+          <div className="flex gap-2 shrink-0">
+            {chatRoomInfo?.isGroup && (
               <button
-                onClick={handleLeaveRoom}
-                className="bg-red-500 text-white px-6 py-2 rounded-xl font-black text-xs uppercase tracking-[0.15em] hover:bg-red-600 hover:-translate-y-0.5 transition-all duration-300 shadow-md"
+                onClick={handleOpenInviteModal}
+                className="bg-white border border-chatBorder text-chatText px-4 py-2 rounded-chat font-semibold text-sm hover:border-chatNavy transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
               >
-                나가기
+                초대
               </button>
-            </div>
+            )}
+            <button
+              onClick={handleLeaveRoom}
+              className="bg-white border border-chatBorder text-chatText px-4 py-2 rounded-chat font-semibold text-sm hover:border-chatOrange transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatOrange focus:ring-offset-2"
+            >
+              나가기
+            </button>
           </div>
         </div>
       </div>
 
       {/* Messages (scroll) */}
-      <div className="flex-1 overflow-hidden max-w-7xl mx-auto w-full px-8 pb-8">
-        <div className="h-full bg-white rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col">
-          <div className="shrink-0 bg-[#1a1f2c] px-10 py-5 flex justify-between items-center border-b border-gray-800">
-            <h2 className="text-white font-black italic tracking-widest text-xs uppercase opacity-80">
-              Chat Messages
-            </h2>
-            <div className="flex gap-2.5">
-              <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-              <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-            </div>
-          </div>
+      <div className="flex-1 overflow-hidden w-full">
+        <div className="h-full bg-chatSurface overflow-hidden flex flex-col">
+          <div
+            ref={chatContainerRef}
+            onScroll={onScroll}
+            className="h-full overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-3"
+          >
+            {loading ? (
+              <div className="text-center text-chatMuted mt-8">
+                <p className="text-base font-medium">메시지를 불러오는 중...</p>
+              </div>
+            ) : Array.isArray(visibleMessages) && visibleMessages.length === 0 ? (
+              <div className="text-center text-chatMuted mt-8">
+                <p className="text-base font-medium">메시지가 없습니다.</p>
+                <p className="text-sm mt-2">대화를 시작해보세요.</p>
+              </div>
+            ) : null}
 
-          <div className="flex-1 overflow-hidden bg-gradient-to-b from-white to-gray-50/30">
-            <div
-              ref={chatContainerRef}
-              onScroll={onScroll}
-              className="h-full overflow-y-auto p-12 space-y-4"
-            >
-              {loading ? (
-                <div className="text-center text-gray-500 mt-8">
-                  <p className="text-lg font-medium">메시지를 불러오는 중...</p>
-                </div>
-              ) : Array.isArray(visibleMessages) && visibleMessages.length === 0 ? (
-                <div className="text-center text-gray-500 mt-8">
-                  <p className="text-lg font-medium">메시지가 없습니다.</p>
-                  <p className="text-sm mt-2">대화를 시작해보세요.</p>
-                </div>
-              ) : null}
+            {Array.isArray(visibleMessages) &&
+              visibleMessages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[75%] sm:max-w-md ${msg.senderId !== currentUserId ? "flex flex-col" : ""}`}>
+                    {/* 그룹 채팅: 발신자 표시 */}
+                    {chatRoomInfo?.isGroup && msg.senderId !== currentUserId && (
+                      <div className="text-xs text-chatMuted mb-1 px-2 font-medium">
+                        {msg.senderNickname || msg.senderId}
+                      </div>
+                    )}
 
-              {Array.isArray(visibleMessages) &&
-                visibleMessages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-xs lg:max-w-md ${msg.senderId !== currentUserId ? "flex flex-col" : ""}`}>
-                      {/* 그룹 채팅: 발신자 표시(목업에서는 senderId로 표시) */}
-                      {chatRoomInfo?.isGroup && msg.senderId !== currentUserId && (
-                        <div className="text-xs text-gray-500 mb-1 px-2 font-semibold">
-                          {msg.senderNickname || msg.senderId}
+                    <div
+                      className={`px-4 py-2.5 rounded-chatLg ${
+                        msg.senderId === currentUserId
+                          ? "bg-chatNavy text-white"
+                          : "bg-chatBg text-chatText border border-chatBorder"
+                      }`}
+                    >
+                      {msg.isTicketPreview ? (
+                        <div
+                          onClick={() => handleTicketPreviewClick(msg.ticketId)}
+                          className="cursor-pointer hover:opacity-80 transition-opacity"
+                        >
+                          <div className={`font-semibold mb-1 text-sm ${msg.senderId === currentUserId ? "text-white" : "text-chatText"}`}>
+                            🎫 티켓 미리보기
+                          </div>
+                          <div className={`text-xs ${msg.senderId === currentUserId ? "opacity-90" : "text-chatMuted"}`}>
+                            클릭하여 티켓 정보 확인
+                          </div>
                         </div>
+                      ) : (
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</div>
                       )}
 
-                      <div
-                        className={`px-5 py-3 rounded-xl shadow-sm ${
-                          msg.senderId === currentUserId ? "bg-blue-600 text-white" : "bg-white text-gray-800 border-2 border-gray-200"
-                        }`}
-                      >
-                        {msg.isTicketPreview ? (
-                          <div
-                            onClick={() => handleTicketPreviewClick(msg.ticketId)}
-                            className="cursor-pointer hover:opacity-80 transition-opacity"
-                          >
-                            <div className="font-bold mb-1 text-base">🎫 티켓 미리보기</div>
-                            <div className={`text-sm ${msg.senderId === currentUserId ? "opacity-90" : "text-gray-600"}`}>
-                              클릭하여 티켓 정보 확인
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-base leading-relaxed">{msg.content}</div>
-                        )}
-
-                        <div className={`text-xs mt-2 ${msg.senderId === currentUserId ? "text-blue-100" : "text-gray-500"}`}>
+                      <div className={`text-xs mt-1.5 flex items-center gap-1.5 ${msg.senderId === currentUserId ? "text-white/80" : "text-chatMuted"}`}>
+                        <span>
                           {new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
-                          {msg.senderId !== currentUserId && msg.isRead === false && (
-                            <span className="ml-2 text-red-500 font-bold">●</span>
-                          )}
-                        </div>
+                        </span>
+                        {msg.senderId !== currentUserId && msg.isRead === false && (
+                          <span className="text-chatOrange">●</span>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
 
-              <div ref={messagesEndRef} />
-            </div>
+            <div ref={messagesEndRef} />
           </div>
         </div>
       </div>
 
       {/* Input */}
-      <div className="shrink-0 max-w-7xl mx-auto w-full px-8 pb-8">
-        <div className="bg-white px-10 py-8 flex gap-4 border-t border-gray-100/60 rounded-b-[2.5rem]">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="메시지를 입력하세요..."
-            className="flex-1 px-6 py-3.5 border-2 border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
-            disabled={!connected}
-          />
-          {/* AI 메시지 처리 토글 버튼 */}
-          <button
-            type="button"
-            onClick={() => setAiEnabled(!aiEnabled)}
-            className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all duration-300 ${
-              aiEnabled
-                ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-            title={aiEnabled ? "AI 메시지 처리 ON" : "AI 메시지 처리 OFF"}
-          >
-            AI {aiEnabled ? "ON" : "OFF"}
-          </button>
-          <button
-            onClick={handleSendMessage}
-            disabled={!connected || !inputMessage.trim()}
-            className="bg-[#111827] text-white px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:-translate-y-1 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-300 shadow-xl shadow-gray-200"
-          >
-            전송
-          </button>
-          <button
-            onClick={() => navigate("/chat")}
-            className="bg-gray-100 text-gray-400 px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-gray-200 hover:text-gray-600 transition-all duration-300"
-          >
-            목록으로
-          </button>
+      <div className="shrink-0 w-full px-4 lg:px-6 py-4 border-t border-chatBorder bg-chatBg">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 flex gap-2">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="메시지를 입력하세요..."
+              className="flex-1 px-4 py-2.5 border border-chatBorder rounded-chat bg-chatBg text-chatText placeholder-chatMuted focus:outline-none focus:ring-2 focus:ring-chatNavy focus:border-chatNavy text-sm"
+              disabled={!connected}
+            />
+            {/* AI 메시지 처리 토글 버튼 */}
+            <button
+              type="button"
+              onClick={() => setAiEnabled(!aiEnabled)}
+              className={`px-4 py-2.5 rounded-chat font-semibold text-xs transition-all ${
+                aiEnabled
+                  ? "bg-chatNavy text-white hover:opacity-90 shadow-chat"
+                  : "bg-white border border-chatBorder text-chatText hover:border-chatNavy shadow-chat"
+              } focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2`}
+              title={aiEnabled ? "AI 메시지 처리 ON" : "AI 메시지 처리 OFF"}
+            >
+              AI {aiEnabled ? "ON" : "OFF"}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSendMessage}
+              disabled={!connected || !inputMessage.trim()}
+              className="bg-chatNavy text-white px-6 py-2.5 rounded-chat font-semibold text-sm hover:opacity-90 disabled:bg-chatMuted disabled:cursor-not-allowed transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2 disabled:opacity-50"
+            >
+              전송
+            </button>
+            <button
+              onClick={() => navigate("/chat")}
+              className="bg-white border border-chatBorder text-chatText px-4 py-2.5 rounded-chat font-semibold text-sm hover:border-chatNavy transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
+            >
+              목록
+            </button>
+          </div>
         </div>
       </div>
 
@@ -573,7 +563,22 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
       />
 
       {/* 티켓 작성 모달 */}
-      {isTicketModalOpen && <AIChatWidget onClose={closeTicketModal} />}
+      {isTicketModalOpen && (
+        <AIChatWidget 
+          onClose={closeTicketModal}
+          chatRoomId={chatRoomId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      {/* 티켓 상세 모달 */}
+      {isTicketDetailModalOpen && selectedTicketId && (
+        <TicketDetailModal
+          tno={selectedTicketId}
+          onClose={handleCloseTicketDetailModal}
+          onDelete={handleCloseTicketDetailModal}
+        />
+      )}
     </div>
   );
 };

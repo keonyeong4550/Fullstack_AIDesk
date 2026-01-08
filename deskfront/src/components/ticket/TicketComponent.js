@@ -133,11 +133,11 @@ const TicketComponent = () => {
   };
 
   const HeaderFilterDropdown = ({ type, options, currentVal, alignRight = false }) => (
-    <div className={`absolute top-full ${alignRight ? 'right-0' : 'left-0'} mt-2 w-44 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50`}>
+    <div className={`absolute top-full ${alignRight ? 'right-0' : 'left-0'} mt-2 w-44 ui-card py-2 z-50`}>
       {options.map(opt => (
         <div
           key={opt.val}
-          className={`px-5 py-3 hover:bg-blue-50 cursor-pointer text-xs font-bold transition-colors ${currentVal === opt.val ? 'text-blue-600 bg-blue-50/50' : 'text-gray-600'}`}
+          className={`px-4 py-2.5 hover:bg-baseSurface cursor-pointer text-xs font-semibold transition-colors ${currentVal === opt.val ? 'text-brandNavy bg-baseSurface' : 'text-baseText'}`}
           onClick={(e) => { e.stopPropagation(); handleColumnFilter(type, opt.val); }}
         >
           {opt.label}
@@ -148,18 +148,19 @@ const TicketComponent = () => {
 
   return (
     <div className="w-full">
-      <h1 className="text-4xl font-extrabold mb-10 text-gray-900 border-b-8 border-blue-500 pb-4 inline-block tracking-normal">
-        업무 현황
-      </h1>
+      <div className="mb-8">
+        <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">TICKET</div>
+        <h1 className="ui-title">업무 현황</h1>
+      </div>
 
-      <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center mb-8 gap-6 bg-white p-6 rounded-3xl shadow-xl border border-gray-100">
-        <div className="flex bg-gray-100 p-2 rounded-2xl shadow-inner">
+      <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center mb-8 gap-6 ui-card p-6">
+        <div className="flex bg-baseSurface p-2 rounded-ui">
           {['ALL', 'RECEIVED', 'SENT'].map((t) => (
             <button
               key={t}
               onClick={() => handleTabChange(t)}
-              className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
-                tab === t ? "bg-white text-blue-600 shadow-md" : "text-gray-400 hover:text-gray-600"
+              className={`px-6 py-2.5 rounded-ui font-semibold text-sm transition-all ${
+                tab === t ? "bg-baseBg text-brandNavy shadow-chat" : "text-baseMuted hover:text-baseText"
               }`}
             >
               {t === 'ALL' ? '전체 업무' : t === 'RECEIVED' ? '받은 업무' : '보낸 업무'}
@@ -171,7 +172,7 @@ const TicketComponent = () => {
           <select
             value={inputRead}
             onChange={(e) => setInputRead(e.target.value)}
-            className="border-2 border-gray-200 p-3 rounded-2xl bg-white font-bold focus:border-blue-500 outline-none w-36 shadow-sm"
+            className="ui-select w-36"
           >
             <option value="ALL">전체 상태</option>
             <option value="READ">읽음</option>
@@ -185,63 +186,63 @@ const TicketComponent = () => {
               value={inputKeyword}
               onChange={(e) => setInputKeyword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="w-full border-2 border-gray-200 p-3 pl-6 rounded-2xl font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
+              className="ui-input"
             />
           </div>
 
-          <button onClick={handleSearch} className="bg-gray-900 text-white px-8 py-3 rounded-2xl font-black hover:bg-blue-600 transition-all shadow-lg">
+          <button onClick={handleSearch} className="ui-btn-primary">
             검색
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 min-h-[600px] flex flex-col">
-        <div className="p-6 bg-gray-900 text-white flex justify-between items-center">
-          <h2 className="text-xl font-black italic uppercase tracking-wider">
+      <div className="ui-card overflow-hidden min-h-[600px] flex flex-col">
+        <div className="px-6 py-4 bg-baseSurface border-b border-baseBorder flex justify-between items-center">
+          <h2 className="text-sm font-semibold text-baseText uppercase tracking-wide">
             {getWorkListTitle()}
           </h2>
-          <span className="bg-blue-500 px-6 py-1 rounded-full text-sm font-black italic">
-            TOTAL: {serverData?.totalCount || 0}
+          <span className="text-xs text-baseMuted font-medium">
+            총 {serverData?.totalCount || 0}개
           </span>
         </div>
 
         <div className="overflow-x-auto flex-grow">
-          <table className="w-full table-fixed">
+          <table className="ui-table">
             <thead>
-              <tr className="bg-gray-50 border-b-2 border-gray-100">
-                <th className="p-5 w-16 text-center text-xs font-black text-gray-400 uppercase tracking-widest">Pin</th>
-                <th className="p-5 w-36 text-left relative">
-                  <div className="flex items-center cursor-pointer text-xs font-black text-gray-400 uppercase tracking-widest hover:text-blue-500 transition-colors"
+              <tr>
+                <th className="w-16 text-center">Pin</th>
+                <th className="w-36 text-left relative">
+                  <div className="flex items-center cursor-pointer hover:text-brandNavy transition-colors"
                        onClick={() => setOpenDropdown(openDropdown === 'grade' ? null : 'grade')}>
-                    Grade <span className="ml-2 text-[10px]">▼</span>
+                    중요도 <span className="ml-1 ui-dropdown-arrow">▼</span>
                   </div>
                   {openDropdown === 'grade' && (
-                    <HeaderFilterDropdown type="grade" options={[{label:'ALL', val:''}, {label:'URGENT', val:'URGENT'}, {label:'HIGH', val:'HIGH'}, {label:'MIDDLE', val:'MIDDLE'}, {label:'LOW', val:'LOW'}]} currentVal={activeFilter.grade} />
+                    <HeaderFilterDropdown type="grade" options={[{label:'전체', val:''}, {label:'긴급', val:'URGENT'}, {label:'높음', val:'HIGH'}, {label:'보통', val:'MIDDLE'}, {label:'낮음', val:'LOW'}]} currentVal={activeFilter.grade} />
                   )}
                 </th>
-                <th className="p-5 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Subject</th>
-                <th className="p-5 w-32 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Sender</th>
-                <th className="p-5 w-32 text-left text-xs font-black text-gray-400 uppercase tracking-widest">Receiver</th>
-                <th className="p-5 w-40 text-center relative">
-                  <div className="flex items-center justify-center cursor-pointer text-xs font-black text-gray-400 uppercase tracking-widest hover:text-blue-500 transition-colors"
+                <th className="text-left">제목</th>
+                <th className="w-32 text-left">발신자</th>
+                <th className="w-32 text-left">수신자</th>
+                <th className="w-40 text-center relative">
+                  <div className="flex items-center justify-center cursor-pointer hover:text-brandNavy transition-colors"
                        onClick={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}>
-                    Deadline <span className="ml-2 text-[10px]">▼</span>
+                    마감일 <span className="ml-1 ui-dropdown-arrow">▼</span>
                   </div>
                   {openDropdown === 'sort' && (
                     <HeaderFilterDropdown type="sort" options={[{label:'최신순', val:'tno,desc'}, {label:'마감 빠른순', val:'deadline,asc'}, {label:'마감 느린순', val:'deadline,desc'}]} currentVal={activeFilter.sort} />
                   )}
                 </th>
-                <th className="p-5 w-32 text-center relative">
-                  <div className="flex items-center justify-center cursor-pointer text-xs font-black text-gray-400 uppercase tracking-widest hover:text-blue-500 transition-colors"
+                <th className="w-32 text-center relative">
+                  <div className="flex items-center justify-center cursor-pointer hover:text-brandNavy transition-colors"
                        onClick={() => setOpenDropdown(openDropdown === 'state' ? null : 'state')}>
-                    Status <span className="ml-2 text-[10px]">▼</span>
+                    상태 <span className="ml-1 ui-dropdown-arrow">▼</span>
                   </div>
                   {openDropdown === 'state' && (
                     <HeaderFilterDropdown
                         type="state"
                         alignRight={true}
                         options={[
-                            {label:'ALL', val:''},
+                            {label:'전체', val:''},
                             {label:'신규', val:'NEW'},
                             {label:'진행 중', val:'IN_PROGRESS'},
                             {label:'정보 필요', val:'NEED_INFO'},
@@ -254,9 +255,9 @@ const TicketComponent = () => {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="p-40 text-center font-black text-gray-300 animate-pulse uppercase">Loading Work...</td></tr>
+                <tr><td colSpan="7" className="p-20 text-center text-baseMuted">로딩 중...</td></tr>
               ) : serverData.dtoList?.length > 0 ? (
                 serverData.dtoList.map((ticket) => {
                   const myInfo = ticket.personals?.find(p => p.receiver === currentUserEmail);
@@ -265,26 +266,26 @@ const TicketComponent = () => {
                   const stateInfo = tab === 'RECEIVED' ? ticket.state : (myInfo ? myInfo.state : (ticket.personals?.[0]?.state || 'NEW'));
 
                   return (
-                    <tr key={ticket.tno || ticket.pno} className="hover:bg-blue-50/30 transition-all h-[65px] cursor-pointer" onClick={() => openTicketModal(ticket.tno)}>
-                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => togglePin(ticket.tno)} className={`text-2xl transition-all hover:scale-125 ${isPinned(ticket.tno) ? 'text-yellow-500' : 'text-gray-200'}`}>
+                    <tr key={ticket.tno || ticket.pno} className="cursor-pointer" onClick={() => openTicketModal(ticket.tno)}>
+                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => togglePin(ticket.tno)} className={`text-xl transition-all hover:scale-125 ${isPinned(ticket.tno) ? 'ui-pin-active' : 'ui-pin-inactive'}`}>
                           {isPinned(ticket.tno) ? '★' : '☆'}
                         </button>
                       </td>
-                      <td className="p-4 truncate">{getGradeBadge(ticket.grade)}</td>
-                      <td className="p-4">
+                      <td className="truncate">{getGradeBadge(ticket.grade)}</td>
+                      <td>
                         <div className="flex items-center gap-2">
-                          {!isRead && <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>}
-                          <span className="font-bold text-gray-800 truncate">{ticket.title}</span>
+                          {!isRead && <span className="w-2 h-2 bg-brandOrange rounded-full shrink-0"></span>}
+                          <span className="font-semibold text-baseText truncate">{ticket.title}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-gray-500 font-medium truncate">{ticket.writer}</td>
-                      <td className="p-4 text-gray-500 font-medium truncate">{receiverInfo}</td>
-                      <td className="p-4 text-center font-black text-red-500 tracking-tighter truncate">
+                      <td className="text-baseMuted truncate">{ticket.writer}</td>
+                      <td className="text-baseMuted truncate">{receiverInfo}</td>
+                      <td className="text-center text-sm ui-deadline truncate">
                         {formatDate(ticket.deadline)}
                       </td>
-                      <td className="p-4 text-center">
-                        <span className="px-3 py-1 rounded-xl text-[11px] font-black bg-gray-100 text-gray-700 uppercase">
+                      <td className="text-center">
+                        <span className="ui-badge ui-text-3xs">
                           {getStateLabel(stateInfo)}
                         </span>
                       </td>
@@ -292,13 +293,13 @@ const TicketComponent = () => {
                   );
                 })
               ) : (
-                <tr><td colSpan="7" className="p-40 text-center text-gray-300 font-black text-2xl uppercase italic">No Data Found</td></tr>
+                <tr><td colSpan="7" className="p-20 text-center text-baseMuted">데이터가 없습니다.</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="p-8 bg-gray-50 flex justify-center border-t border-gray-100 mt-auto">
+        <div className="p-6 bg-baseSurface flex justify-center border-t border-baseBorder mt-auto">
           {serverData?.dtoList?.length > 0 && <PageComponent serverData={serverData} movePage={(p) => setPage(p.page)} />}
         </div>
       </div>

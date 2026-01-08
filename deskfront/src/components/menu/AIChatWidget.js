@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { aiSecretaryApi } from "../../api/aiSecretaryApi";
-import { sttApi } from "../../api/sttApi";  // STT API 추가
+import { sttApi } from "../../api/sttApi";
+import { sendMessageRest } from "../../api/chatApi";
+import { getMemberInfo } from "../../api/memberApi";
 import FilePreview from "../common/FilePreview";
 import "./AIChatWidget.css";
 
@@ -13,7 +15,14 @@ const generateUUID = () => {
   });
 };
 
-const AIChatWidget = ({ onClose }) => {
+const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
+  // ✅ 오늘로부터 7일 후 날짜 (YYYY-MM-DD)
+  const getDefaultDeadline = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return date.toISOString().split("T")[0];
+  };
+
   const loginState = useSelector((state) => state.loginSlice);
   const currentUserDept = loginState.department || "Unknown";
   const currentUserEmail = loginState.email;
@@ -29,24 +38,61 @@ const AIChatWidget = ({ onClose }) => {
     purpose: "",
     requirement: "",
     grade: "MIDDLE",
-    deadline: "",
+    deadline: getDefaultDeadline(),
     receivers: [],
   });
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const fileInputRef = useRef(null);
-  const audioInputRef = useRef(null);  // 오디오 파일용 ref 추가
+  const audioInputRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const pdfRef = useRef(null);
+
   const [targetDept, setTargetDept] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
-  const [isSttLoading, setIsSttLoading] = useState(false);  // STT 로딩 상태 추가
-  const messagesEndRef = useRef(null);
+  const [isSttLoading, setIsSttLoading] = useState(false);
+  // 여러 명 담당자 정보를 위한 배열
+  const [assigneesInfo, setAssigneesInfo] = useState([]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // 담당자 정보 조회 (receivers 변경 시) - 여러 명 지원
+  useEffect(() => {
+    const fetchAssigneesInfo = async () => {
+      if (!currentTicket.receivers || currentTicket.receivers.length === 0) {
+        setAssigneesInfo([]);
+        return;
+      }
+
+      try {
+        const promises = currentTicket.receivers
+          .filter((email) => !!email)
+          .map((email) => getMemberInfo(email).catch(() => null));
+
+        const results = await Promise.all(promises);
+
+        const cleaned = results
+          .map((info, idx) =>
+            info
+              ? { ...info, email: currentTicket.receivers[idx] }
+              : { email: currentTicket.receivers[idx] }
+          )
+          .filter(Boolean);
+
+        setAssigneesInfo(cleaned);
+      } catch (error) {
+        console.error("담당자 정보 조회 실패:", error);
+        setAssigneesInfo([]);
+      }
+    };
+
+    fetchAssigneesInfo();
+  }, [currentTicket.receivers]);
 
   const handleManualChange = (e) => {
     const { name, value } = e.target;
@@ -62,80 +108,188 @@ const AIChatWidget = ({ onClose }) => {
     setSelectedFiles((prev) => [...prev, ...files]);
   };
 
-  // STT 처리 함수 추가
+  // ✅ [Helper] 텍스트 요약 및 자르기 함수들
+  const compressText = (text = "", max = 240) => {
+    const t = String(text || "")
+      .replace(/\r/g, "")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (!t) return "";
+    if (t.length <= max) return t;
+    const sentences = t.split(/(?<=[.!?。]|다\.)\s+/);
+    let out = "";
+    for (const s of sentences) {
+      if ((out + (out ? " " : "") + s).length > max) break;
+      out += (out ? " " : "") + s;
+    }
+    if (out) return out;
+    return t.slice(0, max - 1) + "…";
+  };
+
+  const compressList = (text = "", maxLines = 4, maxChars = 420) => {
+    const t = String(text || "")
+      .replace(/\r/g, "")
+      .trim();
+    if (!t) return "";
+    const lines = t
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const bulletLike = lines.filter((l) =>
+      /^(\d+\.|[-*•]|[가-힣]\.)\s*/.test(l)
+    );
+    const picked = (bulletLike.length ? bulletLike : lines).slice(0, maxLines);
+    let out = picked.join("\n");
+    if (out.length > maxChars) out = out.slice(0, maxChars - 1) + "…";
+    return out;
+  };
+
+  const buildInputFromSummary = (s) => {
+    const title = compressText(s?.title || "", 60);
+    const content = [
+      compressText(s?.overview || s?.shortSummary || "", 220),
+      s?.conclusion ? `결론: ${compressText(s.conclusion, 140)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const purpose = compressText(s?.overview || "", 120);
+    const requirement = compressList(s?.details || "", 5, 520);
+
+    // 참석자 전체를 receivers로 사용 (여러 명 지원)
+    let receivers = [];
+    if (Array.isArray(s?.attendees)) {
+      receivers = s.attendees.filter((v) => !!v);
+    } else if (typeof s?.attendees === "string") {
+      receivers = s.attendees
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => !!v);
+    }
+
+    return { title, content, purpose, requirement, receivers };
+  };
+
+  // =====================================================================
+  // ✅ [핵심 기능] STT 결과로 AI 요약 + PDF 생성 + 파일 첨부 자동화 함수
+  // =====================================================================
+  const autoProcessSttResult = async (text) => {
+    if (!text) return;
+
+    setIsLoading(true);
+    // setAiSummary(
+    //   "⏳ 음성 내용을 바탕으로 회의록을 작성하고 PDF를 생성 중입니다..."
+    // );
+
+    try {
+      // 1. AI 요약 요청 (텍스트를 content에 담아서 요청)
+      //    (기존 currentTicket에는 값이 없을 수 있으므로 text를 content로 강제 주입하여 요청)
+      const mockTicket = { ...currentTicket, content: text };
+      const summaryData = await aiSecretaryApi.getSummary(mockTicket, null);
+
+      // 2. 파란창(AI 요약 리포트) 업데이트
+      //   setAiSummary(summaryData);
+
+      // 3. 우측 입력 폼 자동 채우기
+      const { title, content, purpose, requirement, receivers } =
+        buildInputFromSummary(summaryData);
+
+      setCurrentTicket((prev) => ({
+        ...prev,
+        title: title || prev.title,
+        content: content || prev.content, // 요약된 내용이 들어감 (원본 텍스트X)
+        purpose: purpose || prev.purpose,
+        requirement: requirement || prev.requirement,
+        deadline: getDefaultDeadline(),
+
+        receivers: receivers && receivers.length ? receivers : prev.receivers,
+      }));
+
+      // 4. PDF 생성 및 자동 첨부
+      //    (요약된 summaryData 객체를 그대로 보냄)
+      const pdfRes = await aiSecretaryApi.downloadSummaryPdf(summaryData);
+
+      // Blob으로 변환
+      const pdfBlob = new Blob([new Uint8Array(pdfRes)], {
+        type: "application/pdf",
+      });
+
+      // File 객체로 변환 (파일명: 제목 + _Auto_Report.pdf)
+      const fileName = `${title || "Voice_Memo"}_AI_Report.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, {
+        type: "application/pdf",
+      });
+
+      // 첨부파일 목록에 추가
+      setSelectedFiles((prev) => [...prev, pdfFile]);
+
+      // 채팅창 알림
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `✅ 음성 분석 완료! 회의록이 작성되었으며 PDF 파일('${fileName}')이 자동으로 첨부되었습니다.`,
+        },
+      ]);
+    } catch (error) {
+      console.error("Auto Process Error:", error);
+      //   setAiSummary("자동 처리 중 오류가 발생했습니다.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "❌ 음성 분석 후 요약/PDF 생성에 실패했습니다.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ STT 처리 함수 (수정됨)
   const handleAudioUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // MP3 파일 검증
-    if (!file.type.includes('audio') && !file.name.endsWith('.mp3')) {
-      alert('MP3 오디오 파일만 업로드 가능합니다.');
+    if (!file.type.includes("audio") && !file.name.endsWith(".mp3")) {
+      alert("MP3 오디오 파일만 업로드 가능합니다.");
       return;
     }
 
     setIsSttLoading(true);
-
-    // 먼저 "음성을 분석 중입니다..." 메시지 표시
     setMessages((prev) => [
       ...prev,
-      {
-        role: "assistant",
-        content: "🎤 음성 파일을 분석하고 있습니다..."
-      },
+      { role: "assistant", content: "🎤 음성 파일을 분석하고 있습니다..." },
     ]);
 
     try {
-      // STT API 호출
       const response = await sttApi.uploadAudio(file);
-      const transcribedText = response.text || response.data?.text || '';
+      const transcribedText = response.text || response.data?.text || "";
 
       if (transcribedText) {
-        // 이전 "분석 중" 메시지를 제거하고 변환된 텍스트를 AI 메시지로 추가
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          // 마지막 "분석 중" 메시지 제거
-          if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
-            newMessages.pop();
-          }
-          // 변환된 텍스트를 AI 메시지로 추가
-          newMessages.push({
-            role: "assistant",
-            content: transcribedText
-          });
-          return newMessages;
-        });
+
+
+        // ✅ [자동화 트리거] 변환된 텍스트로 요약 및 PDF 생성 시작
+        await autoProcessSttResult(transcribedText);
       } else {
-        // 변환 실패 메시지
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
-            newMessages.pop();
-          }
-          newMessages.push({
+        setMessages((prev) => [
+          ...prev,
+          {
             role: "assistant",
-            content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요."
-          });
-          return newMessages;
-        });
+            content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요.",
+          },
+        ]);
       }
     } catch (error) {
       console.error("STT Error:", error);
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        if (newMessages[newMessages.length - 1].content.includes("분석하고 있습니다")) {
-          newMessages.pop();
-        }
-        newMessages.push({
-          role: "assistant",
-          content: "음성 변환 중 오류가 발생했습니다."
-        });
-        return newMessages;
-      });
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "음성 변환 중 오류가 발생했습니다." },
+      ]);
     } finally {
       setIsSttLoading(false);
-      // 파일 입력 초기화
       if (audioInputRef.current) {
-        audioInputRef.current.value = '';
+        audioInputRef.current.value = "";
       }
     }
   };
@@ -169,24 +323,15 @@ const AIChatWidget = ({ onClose }) => {
         current_ticket: currentTicket,
       });
 
-      // [핵심 수정] Java Backend(CamelCase) 응답에 맞춰 변수명 수정
-      // ai_message -> aiMessage
-      // updated_ticket -> updatedTicket
-      // is_completed -> isCompleted
-      // identified_target_dept -> identifiedTargetDept
-
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: response.aiMessage },
       ]);
 
-      // AI가 분석한 티켓 정보를 상태에 반영 (이제 정상적으로 들어옵니다)
       if (response.updatedTicket) {
         setCurrentTicket(response.updatedTicket);
       }
-
       setIsCompleted(response.isCompleted);
-
       if (response.identifiedTargetDept) {
         setTargetDept(response.identifiedTargetDept);
       }
@@ -206,15 +351,30 @@ const AIChatWidget = ({ onClose }) => {
       alert("필수 항목(제목, 내용, 담당자, 마감일)을 모두 확인해 주세요.");
       return;
     }
-
     setIsLoading(true);
-
     try {
-      await aiSecretaryApi.submitTicket(
+      // 1. 티켓 저장
+      const ticketResponse = await aiSecretaryApi.submitTicket(
         currentTicket,
         selectedFiles,
         currentUserEmail
       );
+
+      // 2. 티켓 저장 성공 시 채팅방에 티켓 미리보기 메시지 전송
+      if (chatRoomId && ticketResponse?.tno) {
+        try {
+          await sendMessageRest(chatRoomId, {
+            content: `티켓이 생성되었습니다: ${currentTicket.title}`,
+            messageType: "TICKET_PREVIEW",
+            ticketId: ticketResponse.tno,
+          });
+        } catch (messageError) {
+          console.error("채팅 메시지 전송 실패:", messageError);
+          // 티켓은 저장되었지만 메시지 전송 실패 - 사용자에게 알림
+          alert("티켓은 저장되었지만 채팅 메시지 전송에 실패했습니다.");
+        }
+      }
+
       setSubmitSuccess(true);
       setTimeout(() => {
         onClose();
@@ -235,15 +395,17 @@ const AIChatWidget = ({ onClose }) => {
         purpose: "",
         requirement: "",
         grade: "MIDDLE",
-        deadline: "",
+        deadline: getDefaultDeadline(), // ✅ 초기화 시에도 7일 후
         receivers: [],
       });
       setSelectedFiles([]);
       setTargetDept(null);
       setIsCompleted(false);
       setSubmitSuccess(false);
+      //   setAiSummary("");
     }
   };
+
 
   return (
     <div className="ai-widget-overlay">
@@ -270,24 +432,21 @@ const AIChatWidget = ({ onClose }) => {
             </div>
 
             <div className="chat-input-wrapper">
-              {/* 클립 버튼 (기존) */}
               <button
                 type="button"
-                style={{ marginRight: "10px", fontSize: "20px" }}
+                className="mr-2.5 text-xl"
                 onClick={() => fileInputRef.current.click()}
                 title="파일 첨부"
               >
                 📎
               </button>
-
-
               <button
                 type="button"
                 style={{
                   marginRight: "10px",
                   fontSize: "20px",
                   opacity: isSttLoading ? 0.5 : 1,
-                  cursor: isSttLoading ? "not-allowed" : "pointer"
+                  cursor: isSttLoading ? "not-allowed" : "pointer",
                 }}
                 onClick={() => audioInputRef.current.click()}
                 disabled={isSttLoading}
@@ -295,8 +454,6 @@ const AIChatWidget = ({ onClose }) => {
               >
                 {isSttLoading ? "⏳" : "📜"}
               </button>
-
-              {/* 파일 입력 (기존) */}
               <input
                 type="file"
                 multiple
@@ -304,8 +461,6 @@ const AIChatWidget = ({ onClose }) => {
                 ref={fileInputRef}
                 onChange={handleFileChange}
               />
-
-              {/* 오디오 파일 입력 (새로 추가) */}
               <input
                 type="file"
                 accept="audio/*,.mp3"
@@ -313,12 +468,14 @@ const AIChatWidget = ({ onClose }) => {
                 ref={audioInputRef}
                 onChange={handleAudioUpload}
               />
-
-              {/* 입력창 */}
               <input
                 type="text"
                 className="chat-input"
-                placeholder={isSttLoading ? "음성을 텍스트로 변환 중..." : "업무 요청 내용을 입력하세요..."}
+                placeholder={
+                  isSttLoading
+                    ? "음성을 텍스트로 변환 중..."
+                    : "업무 요청 내용을 입력하세요..."
+                }
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) =>
@@ -326,12 +483,15 @@ const AIChatWidget = ({ onClose }) => {
                 }
                 disabled={isSttLoading}
               />
-
-              {/* 전송 버튼 */}
               <button
                 className="reset-btn"
                 onClick={handleSendMessage}
-                disabled={isLoading || submitSuccess || !inputMessage.trim() || isSttLoading}
+                disabled={
+                  isLoading ||
+                  submitSuccess ||
+                  !inputMessage.trim() ||
+                  isSttLoading
+                }
               >
                 전송
               </button>
@@ -339,17 +499,83 @@ const AIChatWidget = ({ onClose }) => {
           </div>
 
           <div className="ai-ticket-section">
-            <div className="ticket-header-row">
-              <span className="dept-badge">To: {targetDept || "(미지정)"}</span>
-              <button className="reset-btn" onClick={handleReset}>
-                🔄 초기화
-              </button>
+            <div
+              className="ticket-header-row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontWeight: "600", fontSize: "12px" }}>To:</span>
+
+                {assigneesInfo && assigneesInfo.length > 0 ? (
+                  assigneesInfo.length === 1 ? (
+                    // ✅ 한 명일 때: 부서 + 이름 네모 두 개 (기존처럼 표시)
+                    <>
+                      <span className="dept-badge">
+                        {assigneesInfo[0].department ||
+                          targetDept ||
+                          "부서 미지정"}
+                      </span>
+                      <span className="dept-badge">
+                        {assigneesInfo[0].nickname ||
+                          assigneesInfo[0].email ||
+                          "담당자 미지정"}
+                      </span>
+                    </>
+                  ) : (
+                    // ✅ 여러 명일 때: 이름만 네모, 부서는 hover 시 title로 표시
+                    assigneesInfo.map((info, idx) => (
+                      <span
+                        key={info.email || idx}
+                        className="dept-badge"
+                        title={info.department || targetDept || "부서 미지정"}
+                      >
+                        {info.nickname || info.email || "담당자 미지정"}
+                      </span>
+                    ))
+                  )
+                ) : currentTicket.receivers &&
+                  currentTicket.receivers.length > 0 ? (
+                  // 백엔드 정보가 아직 없을 때 fallback
+                  currentTicket.receivers.map((email, idx) => (
+                    <span
+                      key={email || idx}
+                      className="dept-badge"
+                      title={targetDept || "부서 미지정"}
+                    >
+                      {email}
+                    </span>
+                  ))
+                ) : (
+                  <span className="dept-badge">담당자 미지정</span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "5px" }}>
+
+                <button
+                  className="reset-btn"
+                  onClick={handleReset}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "4px",
+                    fontSize: "13px",
+                  }}
+                >
+                  🔄
+                </button>
+              </div>
             </div>
 
-            <div className="ticket-preview-box">
+            <div className="ticket-preview-box" ref={pdfRef}>
+
+
               <div className="form-group">
                 <label>
-                  제목 <span className="text-red-500">*</span>
+                  제목 <span className="ui-required">*</span>
                 </label>
                 <input
                   name="title"
@@ -360,7 +586,7 @@ const AIChatWidget = ({ onClose }) => {
               </div>
               <div className="form-group">
                 <label>
-                  요약 <span className="text-red-500">*</span>
+                  요약 <span className="ui-required">*</span>
                 </label>
                 <textarea
                   name="content"
@@ -373,7 +599,7 @@ const AIChatWidget = ({ onClose }) => {
               <div className="form-row">
                 <div className="form-group">
                   <label>
-                    목적 <span className="text-red-500">*</span>
+                    목적 <span className="ui-required">*</span>
                   </label>
                   <textarea
                     name="purpose"
@@ -385,7 +611,7 @@ const AIChatWidget = ({ onClose }) => {
                 </div>
                 <div className="form-group">
                   <label>
-                    상세 <span className="text-red-500">*</span>
+                    상세 <span className="ui-required">*</span>
                   </label>
                   <textarea
                     name="requirement"
@@ -399,7 +625,7 @@ const AIChatWidget = ({ onClose }) => {
               <div className="form-row">
                 <div className="form-group">
                   <label>
-                    마감일 <span className="text-red-500">*</span>
+                    마감일 <span className="ui-required">*</span>
                   </label>
                   <input
                     name="deadline"
@@ -426,7 +652,7 @@ const AIChatWidget = ({ onClose }) => {
               </div>
               <div className="form-group">
                 <label>
-                  담당자 <span className="text-red-500">*</span>
+                  담당자 <span className="ui-required">*</span>
                 </label>
                 <input
                   name="receivers"
@@ -438,38 +664,16 @@ const AIChatWidget = ({ onClose }) => {
 
               <div className="form-group">
                 <label>첨부 파일 ({selectedFiles.length})</label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: "5px",
-                    marginTop: "10px",
-                  }}
-                >
+                <div className="grid grid-cols-5 gap-1 mt-2.5">
                   {selectedFiles.map((file, idx) => (
                     <div
                       key={idx}
-                      style={{
-                        position: "relative",
-                        aspectRatio: "1/1",
-                        border: "1px solid #ddd",
-                        borderRadius: "8px",
-                        overflow: "hidden",
-                      }}
+                      className="relative aspect-square border border-baseBorder rounded-lg overflow-hidden"
                     >
                       <FilePreview file={file} isLocal={true} />
                       <button
                         onClick={() => removeFile(idx)}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          right: 0,
-                          background: "rgba(0,0,0,0.5)",
-                          color: "white",
-                          border: "none",
-                          cursor: "pointer",
-                          width: "20px",
-                        }}
+                        className="absolute top-0 right-0 bg-black/50 text-white border-none cursor-pointer w-5 h-5 flex items-center justify-center text-xs hover:bg-black/70 transition-colors"
                       >
                         ×
                       </button>

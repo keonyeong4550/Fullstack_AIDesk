@@ -118,78 +118,74 @@ const ModifyComponent = () => {
   };
 
   return (
-    <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-gray-100">
-      <div className="flex flex-col items-center mb-10">
-        <h1 className="text-4xl font-black italic tracking-tighter text-gray-900 border-b-8 border-blue-500 pb-2 uppercase">
-          Modify Profile
-        </h1>
-        <p className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-[10px]">Update your personal information</p>
+    <div className="ui-card p-8 lg:p-10">
+      <div className="flex flex-col items-center mb-8">
+        <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">PROFILE</div>
+        <h1 className="ui-title">프로필 수정</h1>
+        <p className="text-baseMuted text-xs mt-2">개인 정보를 업데이트하세요</p>
       </div>
 
-      <form className="space-y-5" onSubmit={handleClickModify}>
+      <form className="space-y-4" onSubmit={handleClickModify}>
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Email (Read Only)</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">이메일 (읽기 전용)</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-transparent bg-gray-100 font-bold text-gray-400 outline-none shadow-inner"
+            className="ui-input bg-baseSurface text-baseMuted"
             name="email" type="text" value={member.email} readOnly
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">New Password</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">새 비밀번호</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
-            name="pw" type="password" value={member.pw} onChange={handleChange} placeholder="Enter new password"
+            className="ui-input"
+            name="pw" type="password" value={member.pw} onChange={handleChange} placeholder="새 비밀번호를 입력하세요"
           />
-          <p className="text-[10px] text-blue-500 font-bold mt-2 ml-2 uppercase italic">* Optional: Set password for direct login</p>
+          <p className="text-xs text-baseMuted mt-1">* 선택사항: 직접 로그인을 위한 비밀번호 설정</p>
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Nickname</label>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">닉네임</label>
           <input
-            className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-bold focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner"
+            className="ui-input"
             name="nickname" type="text" value={member.nickname} onChange={handleChange}
           />
         </div>
 
         <div>
-          <label className="block text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-2">Department</label>
-          <div className="relative">
-            <select
-              name="department"
-              value={member.department || "DEVELOPMENT"}
-              onChange={handleChange}
-              className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 font-black text-gray-700 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none"
-            >
-              <option value="DEVELOPMENT">💻 개발팀 (DEVELOPMENT)</option>
-              <option value="SALES">🤝 영업팀 (SALES)</option>
-              <option value="HR">👥 인사팀 (HR)</option>
-              <option value="DESIGN">🎨 디자인팀 (DESIGN)</option>
-              <option value="PLANNING">📝 기획팀 (PLANNING)</option>
-              <option value="FINANCE">💰 재무팀 (FINANCE)</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">▼</div>
-          </div>
+          <label className="block text-xs font-semibold text-baseMuted mb-2">부서</label>
+          <select
+            name="department"
+            value={member.department || "DEVELOPMENT"}
+            onChange={handleChange}
+            className="ui-select"
+          >
+            <option value="DEVELOPMENT">💻 개발팀 (DEVELOPMENT)</option>
+            <option value="SALES">🤝 영업팀 (SALES)</option>
+            <option value="HR">👥 인사팀 (HR)</option>
+            <option value="DESIGN">🎨 디자인팀 (DESIGN)</option>
+            <option value="PLANNING">📝 기획팀 (PLANNING)</option>
+            <option value="FINANCE">💰 재무팀 (FINANCE)</option>
+          </select>
         </div>
 
         {/* --- 얼굴 인식 관리 섹션 --- */}
-        <div className="mt-8 p-6 bg-blue-50/50 rounded-[30px] border-2 border-dashed border-blue-100">
-          <label className="block text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 ml-2">Face ID Setting</label>
+        <div className="mt-6 p-6 bg-baseSurface rounded-ui border-2 border-dashed border-baseBorder">
+          <label className="block text-xs font-semibold text-baseMuted mb-4">얼굴 인식 설정</label>
 
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-bold text-gray-600 ml-2">
-              얼굴 로그인 사용여부: <span className={member.faceEnabled ? "text-blue-600" : "text-red-400"}>
+            <span className="text-sm font-medium text-baseText">
+              얼굴 로그인 사용여부: <span className={member.faceEnabled ? "text-brandNavy" : "text-baseMuted"}>
                 {member.faceEnabled ? "ON" : "OFF"}
               </span>
             </span>
             <button
               type="button"
               onClick={handleToggleFace}
-              className={`px-6 py-2 rounded-xl font-black text-[10px] tracking-widest transition-all ${
-                member.faceEnabled ? "bg-red-400 text-white" : "bg-blue-500 text-white"
+              className={`px-4 py-2 rounded-ui font-semibold text-xs transition-all ${
+                member.faceEnabled ? "ui-btn-danger" : "ui-btn-primary"
               }`}
             >
-              {member.faceEnabled ? "DISABLE" : "ENABLE"}
+              {member.faceEnabled ? "비활성화" : "활성화"}
             </button>
           </div>
 
@@ -197,29 +193,29 @@ const ModifyComponent = () => {
             <button
               type="button"
               onClick={startCamera}
-              className="w-full py-4 bg-white border-2 border-blue-500 text-blue-600 rounded-2xl font-black text-xs hover:bg-blue-500 hover:text-white transition-all"
+              className="w-full py-3 ui-btn-secondary"
             >
-              {member.faceEnabled ? "RE-REGISTER FACE (OPEN CAMERA)" : "REGISTER FACE (OPEN CAMERA)"}
+              {member.faceEnabled ? "얼굴 재등록 (카메라 열기)" : "얼굴 등록 (카메라 열기)"}
             </button>
           ) : (
             <div className="flex flex-col items-center space-y-4">
-              <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-lg">
+              <div className="relative w-full aspect-video bg-black rounded-ui overflow-hidden">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover mirror" />
               </div>
               <div className="flex gap-2 w-full">
                 <button
                   type="button"
                   onClick={captureAndRegister}
-                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs"
+                  className="flex-1 ui-btn-primary"
                 >
-                  CAPTURE & SAVE
+                  캡처 및 저장
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCamera(false)}
-                  className="px-6 py-4 bg-gray-200 text-gray-600 rounded-2xl font-black text-xs"
+                  className="ui-btn-secondary"
                 >
-                  CANCEL
+                  취소
                 </button>
               </div>
             </div>
@@ -229,10 +225,10 @@ const ModifyComponent = () => {
         </div>
 
         <button
-          className="w-full bg-blue-600 text-white p-5 rounded-3xl font-black text-xl hover:bg-gray-900 hover:scale-[1.02] transition-all shadow-xl mt-6 active:scale-95"
+          className="w-full ui-btn-primary py-4 mt-6"
           type="submit"
         >
-          UPDATE & RE-APPROVE
+          업데이트 및 재승인
         </button>
       </form>
     </div>

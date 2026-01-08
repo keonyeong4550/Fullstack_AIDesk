@@ -8,7 +8,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
+  @apply bg-black/60;
   z-index: 9999;
   display: flex;
   justify-content: center;
@@ -18,11 +18,9 @@
 
 .ai-widget-container {
   width: 90%;
-  max-width: 1400px; /* Streamlit Wide Layout */
+  max-width: 1400px;
   height: 85vh;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  @apply bg-baseBg rounded-ui shadow-ui border border-baseBorder;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -34,17 +32,11 @@
 ---------------------------------------------------------------- */
 .ai-widget-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f0f2f6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #ffffff;
+  @apply border-b border-baseBorder flex justify-between items-center bg-baseSurface;
 }
 
 .ai-widget-header h2 {
-  font-size: 1.8rem; /* demo_ui.py h1 사이즈 일치 */
-  font-weight: 700;
-  color: #31333f;
+  @apply text-xl font-semibold text-baseText;
   margin: 0;
   display: flex;
   align-items: center;
@@ -55,12 +47,11 @@
   background: none;
   border: none;
   font-size: 1.5rem;
-  cursor: pointer;
-  color: #31333f;
+  @apply cursor-pointer text-baseMuted transition-colors;
 }
 
 .close-btn:hover {
-  color: #ff4b4b;
+  @apply text-baseText;
 }
 
 /* ----------------------------------------------------------------
@@ -69,10 +60,7 @@
 .ai-widget-body {
   display: flex;
   flex: 1;
-  overflow: hidden;
-  padding: 1rem;
-  gap: 2rem;
-  background-color: #ffffff;
+  @apply overflow-hidden p-4 gap-8 bg-baseBg;
 }
 
 /* ----------------------------------------------------------------
@@ -89,15 +77,12 @@
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  border: 1px solid #f0f2f6;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  background-color: #ffffff;
+  @apply border border-baseBorder rounded-ui mb-4 bg-baseSurface;
 }
 
 .chat-message {
   display: flex;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   align-items: flex-start;
 }
 
@@ -108,29 +93,25 @@
 .chat-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 4px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
-  margin: 0 10px;
-  background-color: #f0f2f6;
+  @apply mx-2.5 bg-baseBorder;
 }
 
 .chat-bubble {
   max-width: 80%;
-  padding: 1rem;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
   line-height: 1.5;
-  white-space: pre-wrap;
-  background-color: #f0f2f6; /* Assistant 배경 */
-  color: #31333f;
+  @apply whitespace-pre-wrap bg-baseBg text-baseText border border-baseBorder;
 }
 
 .chat-message.user .chat-bubble {
-  background-color: #e8f4fd; /* User 배경 (demo_ui.py 느낌) */
-  text-align: right;
+  @apply bg-brandNavy text-white text-right border-none;
 }
 
 /* 채팅 입력창 */
@@ -142,22 +123,17 @@
 
 .chat-input {
   flex: 1;
-  padding: 0.75rem;
-  border: 1px solid #d6d6d6;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.2s;
+  padding: 0.625rem 1rem;
+  @apply border border-baseBorder rounded-ui text-sm outline-none transition-all bg-baseBg text-baseText;
 }
 
 .chat-input:focus {
-  border-color: #ff4b4b; /* Streamlit Primary Red */
-  box-shadow: 0 0 0 1px #ff4b4b;
+  @apply border-brandNavy;
+  box-shadow: 0 0 0 2px rgba(31, 58, 104, 0.1);
 }
 
 .chat-input:disabled {
-  background-color: #f0f2f6;
-  cursor: not-allowed;
+  @apply bg-baseSurface cursor-not-allowed;
 }
 
 /* ----------------------------------------------------------------
@@ -179,34 +155,19 @@
 }
 
 .dept-badge {
-  background-color: #e8f4fd;
-  color: #0d47a1;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-weight: bold;
-  border: 1px solid #2196f3;
+  @apply bg-baseSurface text-baseText px-4 py-2 rounded-lg font-semibold text-sm border border-baseBorder;
 }
 
 .reset-btn {
-  background-color: #ffffff;
-  border: 1px solid #d6d6d6;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #31333f;
+  @apply bg-baseBg border border-baseBorder px-4 py-2 rounded-ui cursor-pointer text-sm font-semibold text-baseText transition-all;
 }
 
 .reset-btn:hover {
-  border-color: #ff4b4b;
-  color: #ff4b4b;
+  @apply border-brandNavy text-brandNavy;
 }
 
 .ticket-preview-box {
-  border: 1px solid #f0f2f6;
-  border-radius: 8px;
-  padding: 1.5rem;
-  background-color: #ffffff;
+  @apply border border-baseBorder rounded-ui p-6 bg-baseBg;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -219,30 +180,23 @@
 }
 
 .form-group label {
-  font-size: 0.85rem;
-  color: #31333f;
-  font-weight: 600;
+  @apply text-sm text-baseText font-semibold;
 }
 
-/* Streamlit Input Style */
+/* Input Style */
 .st-input,
 .st-textarea {
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d6d6d6;
-  border-radius: 0.5rem;
-  /* [수정] 배경색을 흰색으로 변경하여 입력 가능함을 표시 */
-  background-color: #ffffff;
-  color: #31333f;
-  font-size: 1rem;
+  padding: 0.625rem 1rem;
+  @apply border border-baseBorder rounded-ui bg-baseBg text-baseText text-sm resize-none transition-all;
   font-family: inherit;
   resize: none;
 }
 
 .st-input:focus,
 .st-textarea:focus {
-  outline: none;
-  border-color: #ff4b4b;
+  @apply outline-none border-brandNavy;
+  box-shadow: 0 0 0 2px rgba(31, 58, 104, 0.1);
 }
 
 .form-row {
@@ -256,39 +210,25 @@
    demo_ui.py의 CSS 직접 이식 (색상 코드 일치)
 ---------------------------------------------------------------- */
 .success-box {
-  padding: 1rem;
-  background-color: #e8f4fd; /* 오리지널 파란색 */
-  border: 1px solid #2196f3;
-  border-radius: 8px;
-  color: #0d47a1;
+  @apply p-4 bg-baseSurface border border-baseBorder rounded-ui text-baseText;
   text-align: center;
-  font-weight: bold;
-  font-size: 1.2rem;
+  font-weight: 600;
+  font-size: 1rem;
   margin-top: 1rem;
   margin-bottom: 1rem;
   animation: fadeIn 0.5s ease-in-out;
 }
 
 .submit-btn {
-  margin-top: 1rem;
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #ff4b4b; /* Streamlit Primary Red */
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  @apply mt-4 w-full py-3 bg-brandNavy text-white border-none rounded-ui font-semibold text-sm cursor-pointer transition-opacity;
 }
 
 .submit-btn:hover {
-  background-color: #ff2b2b;
+  opacity: 0.9;
 }
 
 .submit-btn:disabled {
-  background-color: #ffabab;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -301,4 +241,84 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* 채팅 입력창 아이콘 버튼 스타일 */
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  margin-right: 8px;
+  padding: 5px;
+  border-radius: 5px;
+  transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: #f0f2f6;
+}
+
+.audio-btn {
+  font-size: 1.4rem; /* 마이크 아이콘 조금 더 크게 */
+}
+
+/* PDF 다운로드 버튼 */
+.pdf-btn {
+  background-color: #ffffff;
+  border: 1px solid #d6d6d6;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #d32f2f; /* PDF 느낌의 붉은색 텍스트 */
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pdf-btn:hover {
+  background-color: #ffebee;
+  border-color: #d32f2f;
+}
+
+/* 회의록 테이블 스타일 */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background-color: white;
+  font-size: 13px;
+}
+
+.summary-table th,
+.summary-table td {
+  border: 1px solid #d1d5db; /* 연한 회색 테두리 */
+  padding: 8px 10px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.summary-table th {
+  background-color: #f3f4f6; /* 헤더 배경색 */
+  width: 120px; /* 제목 칸 너비 고정 */
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.summary-table td {
+  color: #1f2937;
+  white-space: pre-wrap; /* 줄바꿈 허용 */
+  line-height: 1.5;
+}
+
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+  color: #4f46e5;
+  margin-bottom: 8px;
 }

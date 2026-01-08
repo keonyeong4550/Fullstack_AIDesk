@@ -69,7 +69,7 @@ public class JWTCheckFilter extends OncePerRequestFilter{
             printWriter.close();
             return;
         }
-        
+
         try {
             //Bearer accestoken... "Bearer " 접두사 제거
             String accessToken = authHeaderStr.substring(7);
@@ -119,7 +119,7 @@ public class JWTCheckFilter extends OncePerRequestFilter{
             // JWT 검증과 무관한 예외는 그대로 전파 (ServletException, IOException 등)
             throw e;
         }
-        
+
         // JWT 검증 성공 시 필터 체인 계속 진행
         filterChain.doFilter(request, response);
     }

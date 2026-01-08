@@ -50,7 +50,7 @@ const useCustomLogin = () => {
     const errorStr = createSearchParams({ error: errorMsg }).toString();
 
     if (errorMsg === "REQUIRE_LOGIN") {
-      alert("로그인 해야만 합니다.");
+      alert(" 로그인이 필요한 서비스입니다.");
       navigate({ pathname: "/member/login", search: errorStr });
       return;
     }

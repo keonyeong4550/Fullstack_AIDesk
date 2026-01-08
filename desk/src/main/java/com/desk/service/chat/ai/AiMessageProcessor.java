@@ -1,8 +1,8 @@
 package com.desk.service.chat.ai;
 
+import com.desk.config.OllamaConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -16,9 +16,7 @@ import java.time.Duration;
 @Log4j2
 public class AiMessageProcessor {
     
-    @Value("${ai.message.enabled:false}")
-    private boolean aiEnabled;
-    
+    private final OllamaConfig ollamaConfig;
     private final OllamaClient ollamaClient;
     
     /**
@@ -51,7 +49,7 @@ public class AiMessageProcessor {
      */
     public ProcessResult processMessage(String originalMessage, Boolean frontendAiEnabled) {
         // 서버 설정이 false이면 AI 기능 사용 안 함
-        if (!aiEnabled) {
+        if (!ollamaConfig.isAiMessageEnabled()) {
             log.debug("[AI] 서버 설정으로 인해 AI 기능 비활성화");
             return new ProcessResult(originalMessage, false);
         }

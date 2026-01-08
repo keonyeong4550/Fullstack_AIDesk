@@ -14,7 +14,7 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
   const [chatRooms, setChatRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // 모달 관련 상태
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -36,19 +36,21 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
     setError(null);
     try {
       const rooms = await getChatRooms();
+
       // 인증 에러 처리
       if (rooms && typeof rooms === 'object' && rooms.error === "ERROR_ACCESS_TOKEN") {
         setError("인증이 만료되었습니다. 다시 로그인해주세요.");
         setChatRooms([]);
         return;
       }
+
       // 백엔드 응답을 프론트엔드 형식으로 변환
       const transformedRooms = rooms.map((room) => {
         // participants에서 현재 사용자 제외한 상대방 찾기
         const otherParticipants = room.participants?.filter(
           (p) => p.userId !== currentUserId
         ) || [];
-        
+
         return {
           id: room.id,
           isGroup: room.roomType === "GROUP",
@@ -117,7 +119,7 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
           department: m.department || null,
         }));
       setSearchResults(filtered);
-      
+
       // userInfoMap 업데이트
       const newMap = {};
       filtered.forEach(user => {
@@ -159,7 +161,7 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
         const otherParticipant = room.participantInfo.find(
           (p) => p.email !== currentUserId
         );
-
+        
         if (otherParticipant) {
           return otherParticipant.nickname;
         }
@@ -182,7 +184,7 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
 
     try {
       let newRoom;
-      
+
       if (selectedUsers.length === 1) {
         // 1:1 채팅방 생성
         newRoom = await createOrGetDirectRoom({ targetEmail: selectedUsers[0] });
@@ -200,10 +202,10 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
       setShowCreateModal(false);
       setSelectedUsers([]);
       setGroupName("");
-      
+
       // 목록 새로고침
       await loadChatRooms();
-      
+
       // 생성된 방으로 이동
       navigate(`/chat/${newRoom.id}`);
     } catch (err) {
@@ -214,96 +216,95 @@ const ChatListComponent = ({ currentUserId: propCurrentUserId }) => {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto p-8 space-y-10 bg-gray-50/30 min-h-screen">
+      <div className="w-full">
         {/* 상단 타이틀 */}
-        <div className="flex justify-between items-end mb-4">
-        <div className="relative inline-block">
-          <span className="text-blue-600 font-black text-xs uppercase tracking-widest mb-3 block italic">
-            Chat Room
-          </span>
-          <h1 className="text-4xl font-black text-[#111827] mb-4 tracking-tighter uppercase">
-            Chat
-          </h1>
-          <div className="h-1.5 w-full bg-blue-600 rounded-full shadow-[0_2px_10px_rgba(37,99,235,0.3)]"></div>
-        </div>
-
-        <div className="flex gap-3 items-center pb-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-chatMuted mb-2">CHAT</div>
+            <h1 className="ui-title">
+              채팅방 목록
+            </h1>
+          </div>
           <button
             onClick={handleCreateChat}
-            className="bg-[#111827] text-white px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-gray-200"
+            className="bg-chatNavy text-white px-6 py-2.5 rounded-chat font-semibold text-sm hover:opacity-90 transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
           >
             새 채팅
           </button>
         </div>
-      </div>
 
-      {/* 목록 카드 */}
-      <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.05)] border border-gray-100">
-        <div className="bg-[#1a1f2c] px-10 py-5 flex justify-between items-center border-b border-gray-800">
-          <h2 className="text-white font-black italic tracking-widest text-xs uppercase opacity-80">
-            Chat Room List
-          </h2>
-          <div className="flex gap-2.5">
-            <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
+        {/* 목록 카드 */}
+        <div className="bg-chatBg rounded-chatLg shadow-chatMd overflow-hidden border border-chatBorder min-h-[600px] flex flex-col">
+          <div className="px-6 py-4 bg-chatSurface border-b border-chatBorder flex justify-between items-center">
+            <h2 className="text-sm font-semibold text-chatText uppercase tracking-wide">
+              채팅방 목록
+            </h2>
+            <span className="text-xs text-chatMuted font-medium">
+              총 {chatRooms.length}개
+            </span>
           </div>
-        </div>
 
-        <div className="p-12 min-h-[450px] bg-gradient-to-b from-white to-gray-50/30">
-          {loading ? (
-            <div className="text-center text-gray-500 py-8">로딩 중...</div>
-          ) : error ? (
-            <div className="text-center text-red-500 py-8">{error}</div>
-          ) : chatRooms.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              채팅방이 없습니다. 새 채팅을 시작해보세요.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {chatRooms.map((room) => (
+          <div className="flex-grow divide-y divide-chatBorder">
+            {loading ? (
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-base">로딩 중...</p>
+              </div>
+            ) : error ? (
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-base">{error}</p>
+              </div>
+            ) : chatRooms.length === 0 ? (
+              <div className="p-20 text-center text-chatMuted">
+                <p className="text-lg font-medium mb-2">채팅방이 없습니다</p>
+                <p className="text-sm">새 채팅을 시작해보세요.</p>
+              </div>
+            ) : (
+              chatRooms.map((room) => (
                 <div
                   key={room.id}
                   onClick={() => navigate(`/chat/${room.id}`)}
-                  className="p-6 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer transition-all hover:shadow-md"
+                  className="relative flex items-center justify-between px-6 py-4 hover:bg-chatSurface transition-colors cursor-pointer group"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-bold text-lg text-gray-900">
-                          {getChatRoomName(room)}
-                        </h3>
-                        {room.isGroup && (
-                          <span className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full font-semibold">
-                            그룹
-                          </span>
-                        )}
-                      </div>
-
-                      {room.lastMessage && (
-                        <>
-                          <p className="text-sm text-gray-600 mb-1">
-                            {formatLastMessage(room.lastMessage)}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {new Date(room.lastMessage.createdAt).toLocaleString()}
-                          </p>
-                        </>
+                  {/* 선택 인디케이터 (좌측) */}
+                  <div className="absolute left-0 top-0 bottom-0 w-0 group-hover:w-0.5 bg-chatNavy transition-all"></div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h3 className="font-semibold text-base text-chatText truncate">
+                        {getChatRoomName(room)}
+                      </h3>
+                      {room.isGroup && (
+                        <span className="px-2 py-0.5 rounded ui-text-2xs font-medium bg-chatSurface text-chatMuted uppercase shrink-0">
+                          그룹
+                        </span>
                       )}
                     </div>
-
-                    {room.unreadCount > 0 && (
-                      <span className="px-3 py-1 bg-red-500 text-white text-xs rounded-full font-semibold">
-                        {room.unreadCount}
-                      </span>
+                    {room.lastMessage && (
+                      <>
+                        <p className="text-sm text-chatMuted mb-1 truncate">
+                          {formatLastMessage(room.lastMessage)}
+                        </p>
+                        <p className="text-xs text-chatMuted">
+                          {new Date(room.lastMessage.createdAt).toLocaleString("ko-KR", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </>
                     )}
                   </div>
+                  {room.unreadCount > 0 && (
+                    <span className="bg-chatOrange text-white text-xs font-semibold px-2 py-1 rounded-full shrink-0 ml-4 min-w-[20px] text-center">
+                      {room.unreadCount}
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
-      </div>
       </div>
 
       {/* 생성 모달 */}

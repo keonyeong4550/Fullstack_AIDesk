@@ -4,8 +4,9 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'com.demo'
+group = 'com'
 version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
 
 java {
     toolchain {
@@ -76,6 +77,17 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // PDF 생성 라이브러리 (iText7)
+    implementation 'com.itextpdf:itext7-core:7.2.5'
+    // 한글 처리를 위한 라이브러리 (필수)
+    implementation 'com.itextpdf:font-asian:7.2.5'
+
+    // JSON 파싱을 위한 Jackson (이미 있다면 생략 가능)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+//    PDF 의존성 주입
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 }
 
 // Spring AI BOM 추가
@@ -83,26 +95,15 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
     }
+
+
 }
 
 tasks.named('test') {
     useJUnitPlatform()
 }
 
-/**
- * QueryDSL Q클래스 생성 설정
- * src/main/generated 폴더에 생성되도록 설정
- */
-def querydslDir = "src/main/generated"
-
-tasks.withType(JavaCompile).configureEach {
-    options.getGeneratedSourceOutputDirectory().set(file(querydslDir))
-}
-
-sourceSets {
-    main.java.srcDirs += [ querydslDir ]
-}
-
-clean {
-    delete file(querydslDir)
+// QueryDSL Q클래스 생성 경로 지정 (선택사항)
+tasks.named('compileJava') {
+    options.annotationProcessorGeneratedSourcesDirectory = file("$buildDir/generated/sources/annotationProcessor/java/main")
 }

@@ -20,6 +20,9 @@ public class OllamaConfig {
     
     @Value("${OLLAMA_API_KEY:}")
     private String apiKey;
+    
+    @Value("${AI_MESSAGE_ENABLED:false}")
+    private boolean aiMessageEnabled;
 }
 
 

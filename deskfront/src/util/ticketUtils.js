@@ -3,16 +3,14 @@
 // 중요도 배지 JSX 반환
 export const getGradeBadge = (grade) => {
   const gradeMap = {
-    LOW: { text: "낮음", color: "bg-gray-500" },
-    MIDDLE: { text: "보통", color: "bg-blue-500" },
-    HIGH: { text: "높음", color: "bg-orange-500" },
-    URGENT: { text: "중요도", color: "bg-red-600" },
+    LOW: { text: "낮음", className: "ui-badge-grade-low" },
+    MIDDLE: { text: "보통", className: "ui-badge-grade-middle" },
+    HIGH: { text: "높음", className: "ui-badge-grade-high" },
+    URGENT: { text: "중요도", className: "ui-badge-grade-urgent" },
   };
   const gradeInfo = gradeMap[grade] || gradeMap.MIDDLE;
   return (
-    <span
-      className={`${gradeInfo.color} text-white px-3 py-1 rounded text-sm font-semibold ml-3`}
-    >
+    <span className={`${gradeInfo.className} ml-3`}>
       {gradeInfo.text}
     </span>
   );
