@@ -1,11 +1,9 @@
 package com.desk.controller;
 
 import com.desk.dto.*;
-import com.desk.service.PersonalTicketService;
 import com.desk.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.data.domain.*;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +18,7 @@ import java.util.List;
 public class TicketController {
     // 생성자주입
     private final TicketService ticketService;
-    private final PersonalTicketService personalTicketService;
+    // private final PersonalTicketService personalTicketService;
 
     // ---> /api/tickets 경로로 Post 요청하면 이리로...
     // 티켓 생성 ---> writer + 수신인 리스트로 Ticket 1건과 TicketPersonal N건 생성
@@ -29,7 +27,7 @@ public class TicketController {
     @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<TicketSentListDTO> create(
             // 쿼리스트링으로 writer 받아옴
-            @RequestParam String writer,
+            @RequestParam("writer") String writer,
             // 바디(JSON)을 DTO로 변환
             @RequestPart("ticket") TicketCreateDTO req,
             // 파일 리스트는 @RequestPart("files")로 받음
@@ -51,8 +49,8 @@ public class TicketController {
     // 보낸 티켓 단일 조회 --- tno + writer로 권한 확인 후 반환
     @GetMapping("/sent/{tno}")
     public ResponseEntity<TicketSentListDTO> readSent(
-            @PathVariable Long tno,
-            @RequestParam String writer
+            @PathVariable("tno") Long tno,
+            @RequestParam("writer") String writer
     ) {
         TicketSentListDTO dto = ticketService.readSent(tno, writer);
         return ResponseEntity.ok(dto);
@@ -61,8 +59,8 @@ public class TicketController {
     // 티켓 삭제 --- writer 요청 시 Ticket 삭제 (연관 TicketPersonal도 함께 삭제)
     @DeleteMapping("/{tno}")
     public ResponseEntity<Void> deleteSent(
-            @PathVariable Long tno,
-            @RequestParam String writer
+            @PathVariable("tno") Long tno,
+            @RequestParam("writer") String writer
     ) {
         log.info("[Ticket] 보낸티켓 삭제 요청 | 작성자={} | 티켓번호={}", writer, tno);
 
@@ -74,7 +72,7 @@ public class TicketController {
     // 보낸함 페이지 조회 --- writer 기준 + filter + 페이징/정렬
     @GetMapping("/sent")
     public ResponseEntity<PageResponseDTO<TicketSentListDTO>> listSent(
-            @RequestParam String writer,
+            @RequestParam("writer") String writer,
             @ModelAttribute TicketFilterDTO filter,
             @ModelAttribute PageRequestDTO pageRequestDTO
     ) {
@@ -85,7 +83,7 @@ public class TicketController {
 
     @GetMapping("/all")
     public ResponseEntity<PageResponseDTO<TicketSentListDTO>> listAll(
-            @RequestParam String email,
+            @RequestParam("email") String email,
             @ModelAttribute TicketFilterDTO filter,
             @ModelAttribute PageRequestDTO pageRequestDTO
     ) {

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -26,6 +27,10 @@ public class AITicketServiceImpl implements AITicketService {
     private final AITicketRAGService ragService;  // 지식 검색
     private final MemberRepository memberRepository; // 담당자 DB 조회
     private final ObjectMapper objectMapper;      // JSON 파싱
+    private final AITicketScenarioService scenarioService; // 데모 시나리오
+
+    @Value("${ai.demo-mode.enabled:false}")
+    private boolean isDemoEnabled;
 
     @Override
     public AITicketResponseDTO processRequest(AITicketRequestDTO request) {
@@ -34,6 +39,16 @@ public class AITicketServiceImpl implements AITicketService {
         String targetDept = request.getTargetDept();
 
         log.info("[AI Logic] Processing... User Input: {}", userInput);
+
+        // ------------------------------------------------------------------
+        // [Step 0] 데모 시나리오 우선 (시연회용)
+        // ------------------------------------------------------------------
+        if (isDemoEnabled) {
+            AITicketResponseDTO scenarioResp = scenarioService.tryHandleScenario(request);
+            if (scenarioResp != null) {
+                return scenarioResp;
+            }
+        }
 
         // ------------------------------------------------------------------
         // [Step 1] 부서 라우팅 (Routing)

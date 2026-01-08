@@ -1,0 +1,35 @@
+import jwtAxios from "../util/jwtUtil";
+const API_SERVER_HOST = process.env.REACT_APP_API_SERVER_HOST;
+
+export const aiFileApi = {
+  sendMessage: async (payload) => {
+    const response = await jwtAxios.post(
+      `${API_SERVER_HOST}/api/ai/file/chat`,
+      payload
+    );
+    return response.data; // AIFileResponseDTO
+  },
+
+  downloadFile: async (uuid, fileName) => {
+    const response = await jwtAxios.get(
+      `${API_SERVER_HOST}/api/ai/file/download/${uuid}`,
+      { responseType: "blob" }
+    );
+
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // 다운로드 파일명은 원본 파일명 그대로 사용
+    const safeName = fileName || "download";
+    link.setAttribute("download", safeName);
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+};
+
+

@@ -111,4 +111,6 @@ tasks.named('test') {
 // QueryDSL Q클래스 생성 경로 지정 (선택사항)
 tasks.named('compileJava') {
     options.annotationProcessorGeneratedSourcesDirectory = file("$buildDir/generated/sources/annotationProcessor/java/main")
+    // Spring MVC가 @RequestParam/@PathVariable의 파라미터 이름을 리플렉션으로 읽을 수 있도록 메타데이터 포함
+    options.compilerArgs += ['-parameters']
 }

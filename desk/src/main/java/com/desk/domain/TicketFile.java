@@ -40,4 +40,12 @@ public class TicketFile {
     public void setTicket(Ticket ticket) {
         this.ticket = ticket;
     }
+
+    // Auditing이 누락된 환경에서도 createdAt이 null로 남지 않도록 안전장치
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+    }
 }

@@ -89,3 +89,9 @@ export const logoutPost = async () => {
   const res = await jwtAxios.post(`${host}/logout`);
   return res.data;
 };
+
+// 담당자 정보 조회 (email로 부서, 닉네임 조회)
+export const getMemberInfo = async (email) => {
+  const res = await jwtAxios.get(`${host}/info/${email}`);
+  return res.data;
+};
