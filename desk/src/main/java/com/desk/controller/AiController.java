@@ -1,7 +1,7 @@
 package com.desk.controller;
 
 import com.desk.dto.MeetingMinutesDTO;
-import com.desk.service.OllamaServiceImpl;
+import com.desk.service.OllamaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpHeaders;
@@ -18,7 +18,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AiController {
 
-    private final OllamaServiceImpl ollamaService;
+    private final OllamaService ollamaService;
 
     // 1. 단순 텍스트 요약 요청
     @PostMapping(value = "/summary")
