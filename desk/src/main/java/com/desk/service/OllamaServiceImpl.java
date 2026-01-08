@@ -20,11 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -53,6 +49,30 @@ public class OllamaServiceImpl implements OllamaService {
     private final ObjectMapper objectMapper;
     private final OllamaConfig ollamaConfig;
     private final MemberRepository memberRepository; // 담당자
+
+    // ✅ 불용어 목록 정의 (회의 중 자주 나오는 쓸데없는 말들)
+    private static final List<String> STOP_WORDS = Arrays.asList(
+            // 1. 단순 감탄사 및 소리
+            "음", "어", "아", "에", "으", "이", "우", "오", "허", "하", "흠", "엥", "와", "야", "헐",
+
+            // 2. 지시 대명사 및 필러 (문맥상 의미 없는 경우)
+            "그", "저", "이", "그게", "저기", "거기", "여기", "이게", "저게", "뭐냐", "뭔가",
+
+            // 3. 부사 및 수식어 (불필요한 강조)
+            "막", "좀", "약간", "그냥", "걍", "진짜", "정말", "되게", "엄청", "완전", "별로",
+            "거의", "대충", "확실히", "분명히", "사실", "솔직히", "실은", "원래", "보통", "대개", "주로", "참",
+
+            // 4. 접속 부사 (말버릇처럼 쓰는 것들)
+            "근데", "그래서", "그러니까", "그니까", "그러면", "그럼", "아무튼", "어쨌든", "여하튼",
+            "다만", "반면", "또", "또한", "그리고", "하지만",
+
+            // 5. 시작 및 전환 (말 꺼낼 때)
+            "이제", "일단", "우선", "먼저", "자", "잠깐", "잠시", "다름아니라", "말하자면",
+
+            // 6. 질문 및 동의 (백채널링)
+            "있잖아", "있지", "그치", "맞지", "알지", "그래", "네", "예", "아니", "아니요", "응",
+            "무슨", "어떤", "어떻게", "왜냐하면", "예를들어"
+    );
     // [수정] 파일과 텍스트를 받아서 AI에게 요청
     @Override
     public MeetingMinutesDTO getMeetingInfoFromAi(MultipartFile file, String title, String content, String purpose, String requirement) {
@@ -83,6 +103,15 @@ public class OllamaServiceImpl implements OllamaService {
         if (finalContent.trim().isEmpty()) {
             throw new RuntimeException("분석할 내용이 없습니다. 내용을 입력하거나 파일을 첨부해주세요.");
         }
+
+        String cleanedText = removeStopWords(finalContent);
+        log.info("[원본 텍스트] (길이: {}) → [불용어 제거 후 텍스트] (길이: {})", finalContent.length(), cleanedText.length());
+        log.info("==================================================");
+        log.info("📄 [원본 텍스트] (길이: {}): \n{}", finalContent.length(), finalContent);
+        log.info("--------------------------------------------------");
+        log.info("🧹 [불용어 제거 후 텍스트] (길이: {}): \n{}", cleanedText.length(), cleanedText);
+        log.info("==================================================");
+
 
         String url = ollamaConfig.getBaseUrl() + "/api/generate";
 
@@ -120,7 +149,22 @@ public class OllamaServiceImpl implements OllamaService {
 
         return callOllamaApi(url, prompt); // (중복 코드 줄이기 위해 아래 메서드로 분리함)
     }
+    // ✅ 불용어 제거 헬퍼 메서드
+    private String removeStopWords(String text) {
+        if (text == null) return "";
 
+        String result = text;
+        for (String stopWord : STOP_WORDS) {
+            // " 음 " 처럼 띄어쓰기로 구분된 단어나, 문장 끝의 "요." 같은 것을 제거
+            // (여기서는 단순하게 해당 단어를 공백으로 치환)
+            result = result.replace(" " + stopWord + " ", " ");
+            result = result.replace(stopWord + ",", ",");
+            result = result.replace(stopWord + ".", ".");
+        }
+
+        // 연속된 공백 제거
+        return result.replaceAll("\\s+", " ").trim();
+    }
     private String extractTextFromFile(MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();
         if (filename == null) return "";
@@ -311,11 +355,6 @@ public class OllamaServiceImpl implements OllamaService {
             return null;
         }
     }
-
-// -------------------------------------------------------
-// 👇 아래 헬퍼 메서드들을 클래스 내부에(generatePdf 밖, 클래스 안) 추가하세요.
-//    표 만들 때 코드를 깔끔하게 하기 위한 도구들입니다.
-// -------------------------------------------------------
 
     // 1. 회색 배경의 헤더 칸 만들기 (선택 사항: 심플하게 흰색으로 하려면 setBackgroundColor 삭제)
     private Cell createHeaderCell(String text) {
