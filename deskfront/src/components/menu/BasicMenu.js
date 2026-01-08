@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../../slices/loginSlice";
+import { useSelector } from "react-redux";
 import CommonModal from "../common/CommonModal";
 import useCustomLogin from "../../hooks/useCustomLogin";
 import AIChatWidget from "./AIChatWidget"; // 같은 폴더 내 위치
@@ -9,9 +8,8 @@ import useCustomPin from "../../hooks/useCustomPin";
 
 const BasicMenu = () => {
   const loginState = useSelector((state) => state.loginSlice);
-  const dispatch = useDispatch();
   const location = useLocation();
-  const { moveToPath } = useCustomLogin();
+  const { moveToPath, doLogout } = useCustomLogin();
   const { resetPins } = useCustomPin();
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -21,8 +19,8 @@ const BasicMenu = () => {
     loginState.roleNames && loginState.roleNames.includes("ADMIN");
 
   const handleClickLogout = () => setIsLogoutModalOpen(true);
-  const handleConfirmLogout = () => {
-    dispatch(logout());
+  const handleConfirmLogout = async () => {
+    await doLogout();
     resetPins();
     setIsLogoutModalOpen(false);
     moveToPath("/");
