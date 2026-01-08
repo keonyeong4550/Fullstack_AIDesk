@@ -32,7 +32,8 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "안녕하세요. 어떤 업무를 도와드릴까요?\n(ex: 파일조회, 업무티켓)",
+      content:
+        "안녕하세요. 어떤 업무를 도와드릴까요?\n(ex: 파일조회, 업무티켓)",
     },
   ]);
 
@@ -136,6 +137,49 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     return { title, content, purpose, requirement, singleReceiver };
   };
 
+  const cleanSttText = (text) => {
+    if (!text) return "";
+
+    let cleaned = text;
+
+    // 1. 괄호로 묶인 소리 제거 (예: (침묵), (잡음), (웃음))
+    cleaned = cleaned.replace(/\([^)]*\)/g, "");
+
+    // 2. 한국어 대화에서 흔한 불용어/감탄사 리스트 (상황에 따라 추가 가능)
+    // 주의: '저', '그', '이제' 같은 단어는 문맥에 필요할 수 있어, 뒤에 쉼표나 공백이 올 때만 제거하거나
+    // 명백한 감탄사(음, 어, 아) 위주로 제거합니다.
+    const stopWords = [
+      "음",
+      "어",
+      "아",
+      "휴",
+      "아이고",
+      "막",
+      "참",
+      "저기",
+      "뭔가",
+      "그..",
+      "어..",
+      "음..",
+      "그러니까..",
+      "약간",
+    ];
+
+    // 3. 불용어 제거 (단어 앞뒤 공백 고려)
+    stopWords.forEach((word) => {
+      // 문장 시작이나 공백 뒤에 오는 불용어 제거
+      const regex = new RegExp(`(^|\\s)${word}(?=\\s|$)`, "g");
+      cleaned = cleaned.replace(regex, " ");
+    });
+
+    // 4. 반복되는 공백을 하나로 줄임
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+    // 5. 문장 끝의 불필요한 공백 제거
+    cleaned = cleaned.replace(/ \./g, ".");
+
+    return cleaned;
+  };
   // =====================================================================
   // ✅ [핵심 기능] STT 결과로 AI 요약 + PDF 생성 + 파일 첨부 자동화 함수
   // =====================================================================
@@ -232,9 +276,11 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
 
     try {
       const response = await sttApi.uploadAudio(file);
-      const transcribedText = response.text || response.data?.text || "";
+      // const transcribedText = response.text || response.data?.text || "";
+      const rawText = response.text || response.data?.text || "";
 
-      if (transcribedText) {
+      // if (transcribedText) {
+      if (rawText) {
         // // 메시지 업데이트
         // setMessages((prev) => {
         //   const newMessages = [...prev];
@@ -251,9 +297,13 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
         //   });
         //   return newMessages;
         // });
+        const cleanedText = cleanSttText(rawText);
 
-        // ✅ [자동화 트리거] 변환된 텍스트로 요약 및 PDF 생성 시작
-        await autoProcessSttResult(transcribedText);
+        console.log("원본 STT:", rawText);
+        console.log("정제된 STT:", cleanedText);
+
+        await autoProcessSttResult(cleanedText);
+        // await autoProcessSttResult(transcribedText);
       } else {
         setMessages((prev) => [
           ...prev,
