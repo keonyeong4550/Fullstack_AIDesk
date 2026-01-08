@@ -11,7 +11,7 @@ const PinDrawer = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     // header 높이 (h-16 = 64px)
     const HEADER_HEIGHT = 64;
-    
+
     const [topPosition, setTopPosition] = useState(() => {
         // localStorage에서 저장된 위치 불러오기
         const saved = localStorage.getItem('pinButtonTop');
@@ -66,12 +66,12 @@ const PinDrawer = () => {
 
         const handleMouseMove = (e) => {
             const deltaY = e.clientY - dragStartY.current;
-            
+
             // 5px 이상 이동했으면 드래그로 간주
             if (Math.abs(deltaY) > 5) {
                 hasDragged.current = true;
             }
-            
+
             let newTop = dragStartTop.current + deltaY;
 
             // 화면 경계 체크 (최소 header 높이, 최대 화면 높이 - 버튼 높이)
@@ -86,12 +86,12 @@ const PinDrawer = () => {
         const handleMouseUp = () => {
             const wasDragging = hasDragged.current;
             setIsDragging(false);
-            
+
             // 드래그가 있었던 경우에만 위치 저장
             if (wasDragging) {
                 localStorage.setItem('pinButtonTop', currentTopRef.current.toString());
             }
-            
+
             // 다음 드래그를 위해 초기화
             setTimeout(() => {
                 hasDragged.current = false;
@@ -127,7 +127,7 @@ const PinDrawer = () => {
     return (
         <>
             {/* 찜 버튼 */}
-            <div 
+            <div
                 ref={buttonRef}
                 className="fixed right-0 z-[40]"
                 style={{ top: `${topPosition}px` }}

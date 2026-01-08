@@ -84,7 +84,7 @@ const FileBoxComponent = () => {
             {/* 제목: 파일 함 */}
             <div className="mb-8">
                 <div className="text-xs uppercase tracking-widest text-baseMuted mb-2">FILE</div>
-                <h1 className="ui-title">파일 함</h1>
+                <h1 className="ui-title">파일함</h1>
             </div>
 
             {/* 필터 및 검색 바  */}

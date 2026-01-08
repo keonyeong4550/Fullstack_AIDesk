@@ -1,7 +1,6 @@
 import jwtAxios from "../util/jwtUtil"; // 커스텀 axios 임포트
 const API_SERVER_HOST = process.env.REACT_APP_API_SERVER_HOST;
 
-
 const prefix = `${API_SERVER_HOST}/api/board`;
 
 // 1. 목록 가져오기

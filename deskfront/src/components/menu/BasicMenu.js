@@ -131,7 +131,7 @@ const BasicMenu = () => {
               }}
               className="ui-nav-link"
             >
-              요청서
+              AI 비서
             </button>
 
             <Link to="/tickets/" className={getMenuClass("/tickets/")}>
@@ -235,7 +235,7 @@ const BasicMenu = () => {
               })}
               className={`w-full text-left ${getMobileMenuClass("/")}`}
             >
-              요청서
+              AI 비서
             </button>
             <Link
               to="/tickets/"

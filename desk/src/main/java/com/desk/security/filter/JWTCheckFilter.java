@@ -52,24 +52,24 @@ public class JWTCheckFilter extends OncePerRequestFilter{
             throws ServletException, IOException{
 
         log.info("------------------------JWTCheckFilter------------------");
-        
+
         // WebSocket 핸드셰이크 요청인지 확인
         String upgradeHeader = request.getHeader("Upgrade");
         boolean isWebSocket = "websocket".equalsIgnoreCase(upgradeHeader) || request.getRequestURI().startsWith("/ws");
-        
+
         // 클라이언트에서 Authorization: Bearer <JWT>로 전달
         String authHeaderStr = request.getHeader("Authorization");
 
         if (authHeaderStr == null || !authHeaderStr.startsWith("Bearer ")) {
             log.error("JWT Check Error: Authorization header is missing or invalid");
-            
+
             // WebSocket 핸드셰이크 실패 시 403 Forbidden 반환
             if (isWebSocket) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().close();
                 return;
             }
-            
+
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
             PrintWriter printWriter = response.getWriter();
@@ -109,11 +109,6 @@ public class JWTCheckFilter extends OncePerRequestFilter{
 
             // 지금 로그인한 사용자의 인증 정보(사용자 정보, 비밀번호, 권한 등)를 SecurityContext에 저장
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-            
-            // WebSocket 핸드셰이크 시 로그 출력
-            if (isWebSocket) {
-                log.info("[WebSocket] JWT 필터를 통한 인증 성공 | email={}", email);
-            }
 
         }catch(CustomJWTException e){ // 예외 처리 (JWT 검증 실패만 처리)
             log.error("JWT Check Error..............");

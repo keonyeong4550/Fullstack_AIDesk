@@ -22,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AITicketClientServiceImpl implements AITicketClientService {
 
+    @Qualifier("aiRestTemplate")
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final OllamaConfig ollamaConfig;

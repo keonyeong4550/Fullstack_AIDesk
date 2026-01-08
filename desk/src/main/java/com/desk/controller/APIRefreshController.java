@@ -5,6 +5,7 @@ import com.desk.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,7 +18,8 @@ public class APIRefreshController {
 
   @RequestMapping("/api/member/refresh") 
   // HTTP 요청 헤더 중 Authorization 값을 가져와서 authHeader 변수에 담음 → 일반적으로 JWT를 Bearer 토큰 형태로 받을 때 사용 (Access Token)
-  public Map<String, Object> refresh(@RequestHeader("Authorization") String authHeader, String refreshToken){
+  public Map<String, Object> refresh(@RequestHeader("Authorization") String authHeader,
+                                     @RequestParam("refreshToken") String refreshToken){
     // refreshToken 없으면 예외
     if(refreshToken == null) {
       throw new CustomJWTException("NULL_REFRASH");

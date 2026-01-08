@@ -121,7 +121,6 @@ const AdminComponent = () => {
           </span>
         </div>
 
-        {/* 데스크톱 테이블 뷰 */}
         <div className="hidden lg:block overflow-x-auto flex-grow">
           <table className="ui-table">
             <thead>
