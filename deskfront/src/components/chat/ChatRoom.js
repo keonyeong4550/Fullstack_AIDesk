@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import useInfiniteChat from "../../hooks/useInfiniteChat";
@@ -18,8 +18,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false); // 이전 메시지 로딩 중
   const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const currentPageRef = useRef(1); // currentPage의 최신 값을 추적
   const pageSize = 20;
   const [aiEnabled, setAiEnabled] = useState(false); // AI 메시지 처리 ON/OFF
 
@@ -43,9 +45,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
+  const lastMessageIdRef = useRef(null); // 마지막 메시지 ID 추적 (새 메시지 감지용)
 
   // 무한 스크롤 훅
-  const { visibleMessages, onScroll, scrollToBottom, setContainerRef, reset } = useInfiniteChat(messages, 30);
+  const { visibleMessages, onScroll: infiniteChatOnScroll, scrollToBottom, setContainerRef, reset } = useInfiniteChat(messages, 30);
 
   // 컨테이너 ref 설정
   useEffect(() => {
@@ -55,7 +58,87 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   // 방 변경 시 초기화
   useEffect(() => {
     reset();
+    setMessages([]);
+    setHasMore(true);
+    setCurrentPage(1);
+    currentPageRef.current = 1;
   }, [chatRoomId, reset]);
+
+  // currentPage ref 동기화
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  // 이전 메시지 로드 함수
+  const loadPreviousMessages = useCallback(async () => {
+    if (!chatRoomId || !currentUserId || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPageRef.current + 1;
+      const response = await getMessages(chatRoomId, { page: nextPage, size: pageSize });
+      
+      if (!response.dtoList || response.dtoList.length === 0) {
+        setHasMore(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      // 백엔드 응답을 프론트엔드 형식으로 변환 (최신순이므로 reverse)
+      const transformedMessages = response.dtoList
+        .reverse()
+        .map((msg) => ({
+          id: msg.id,
+          chatRoomId: msg.chatRoomId,
+          senderId: msg.senderId,
+          senderNickname: msg.senderNickname || msg.senderId,
+          receiverId: chatRoomInfo?.isGroup ? null : (msg.senderId === currentUserId ? otherUserId : currentUserId),
+          content: msg.content,
+          createdAt: msg.createdAt,
+          isRead: true,
+          isTicketPreview: msg.messageType === "TICKET_PREVIEW",
+          ticketId: msg.ticketId,
+          messageSeq: msg.messageSeq,
+        }));
+
+      // 스크롤 위치 보정을 위해 현재 스크롤 위치 저장
+      const container = chatContainerRef.current;
+      const prevScrollHeight = container ? container.scrollHeight : 0;
+      const prevScrollTop = container ? container.scrollTop : 0;
+
+      // 기존 메시지 앞에 추가
+      setMessages((prev) => [...transformedMessages, ...prev]);
+      setCurrentPage(nextPage);
+      setHasMore(response.totalCount > (nextPage * pageSize));
+
+      // 스크롤 위치 보정
+      if (container) {
+        requestAnimationFrame(() => {
+          const newScrollHeight = container.scrollHeight;
+          const heightDiff = newScrollHeight - prevScrollHeight;
+          container.scrollTop = prevScrollTop + heightDiff;
+        });
+      }
+    } catch (err) {
+      console.error("이전 메시지 로드 실패:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [chatRoomId, currentUserId, loadingMore, hasMore, chatRoomInfo, otherUserId, pageSize]);
+
+  // 커스텀 스크롤 핸들러 (무한 스크롤 + 이전 메시지 로드)
+  const handleScroll = (e) => {
+    const el = e.target;
+    if (!el) return;
+
+    // useInfiniteChat의 스크롤 핸들러 호출
+    infiniteChatOnScroll(e);
+
+    // 스크롤이 최상단에 가까우면 이전 메시지 로드
+    if (el.scrollTop < 100 && hasMore && !loadingMore && !loading) {
+      loadPreviousMessages();
+    }
+  };
 
   // 메시지 로드 (초기 로드)
   useEffect(() => {
@@ -84,6 +167,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
         setMessages(transformedMessages);
         setHasMore(response.totalCount > transformedMessages.length);
         setCurrentPage(1);
+        currentPageRef.current = 1;
 
         // 마지막 메시지 읽음 처리
         if (transformedMessages.length > 0) {
@@ -163,10 +247,34 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     };
   }, [chatRoomId, currentUserId]);
 
-  // ✅ 새 메시지 추가 시 맨 아래로 스크롤
+  // ✅ 새 메시지 추가 시 맨 아래로 스크롤 (이전 메시지 로드 시에는 제외)
+  // useInfiniteChat 훅에서 이미 처리하므로 여기서는 제거
+  // 단, WebSocket으로 새 메시지가 왔을 때는 useInfiniteChat이 감지하지 못할 수 있으므로
+  // 마지막 메시지 ID 변경을 추적하여 처리
   useEffect(() => {
-    scrollToBottom();
-  }, [messages.length, scrollToBottom]);
+    // 이전 메시지 로드 중이면 스크롤하지 않음
+    if (loadingMore) return;
+
+    // 메시지가 없으면 스크롤하지 않음
+    if (messages.length === 0) {
+      lastMessageIdRef.current = null;
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage?.id;
+
+    // 마지막 메시지 ID가 변경되었을 때만 스크롤 (새 메시지가 뒤에 추가된 경우)
+    if (lastMessageIdRef.current !== null && lastMessageIdRef.current !== lastMessageId) {
+      // 새 메시지가 추가된 경우에만 스크롤
+      scrollToBottom();
+    } else if (lastMessageIdRef.current === null && messages.length > 0) {
+      // 초기 로드 시
+      scrollToBottom();
+    }
+
+    lastMessageIdRef.current = lastMessageId;
+  }, [messages, loadingMore, scrollToBottom]);
 
   // 메시지 전송
   const handleSendMessage = async () => {
@@ -354,32 +462,38 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     }
   };
 
+  // 1:1 채팅의 경우 상대방 이름 가져오기
+  const otherUserInfo = chatRoomInfo?.participantInfo?.find(
+    (p) => p.email === otherUserId
+  );
+  const otherUserName = otherUserInfo?.nickname || otherUserId || "채팅";
+
   const chatRoomName = chatRoomInfo?.isGroup
     ? chatRoomInfo.name || "그룹 채팅"
-    : otherUserId || "채팅";
+    : otherUserName;
 
   return (
-    <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)] overflow-hidden flex flex-col bg-chatBg">
+    <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)] overflow-hidden flex flex-col bg-baseBg">
       {/* Header */}
-      <div className="shrink-0 w-full px-4 lg:px-6 py-4 lg:py-6 border-b border-chatBorder bg-chatBg">
+      <div className="shrink-0 w-full px-4 lg:px-6 py-4 lg:py-6 border-b border-baseBorder bg-baseBg">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex-1 min-w-0">
-            <div className="text-xs uppercase tracking-widest text-chatMuted mb-1">
+            <div className="text-xs uppercase tracking-widest text-baseMuted mb-1">
               {chatRoomInfo?.isGroup ? "그룹 채팅" : "1:1 채팅"}
             </div>
-            <h1 className="text-xl lg:text-2xl font-semibold text-chatText truncate">
+            <h1 className="text-xl lg:text-2xl font-semibold text-baseText truncate">
               {chatRoomName}
             </h1>
-            <div className="flex items-center gap-3 mt-2">
-              {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantIds) && (
-                <span className="text-xs text-chatMuted">
-                  참여자 {chatRoomInfo.participantIds.length}명
-                </span>
-              )}
-              {!chatRoomInfo?.isGroup && (
-                <span className="text-xs text-chatMuted">
-                  {otherUserId || "알 수 없음"}
-                </span>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              {chatRoomInfo?.isGroup && Array.isArray(chatRoomInfo?.participantInfo) && (
+                <>
+                  <span className="text-xs text-baseMuted">
+                    {chatRoomInfo.participantInfo.map((p) => p.nickname || p.email).join(", ")}
+                  </span>
+                  <span className="text-xs text-baseMuted">
+                    참여자 {chatRoomInfo.participantInfo.length}명
+                  </span>
+                </>
               )}
               <div className={`text-xs flex items-center gap-1 ${connected ? "ui-status-connected" : "ui-status-disconnected"}`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
@@ -393,14 +507,14 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
             {chatRoomInfo?.isGroup && (
               <button
                 onClick={handleOpenInviteModal}
-                className="bg-white border border-chatBorder text-chatText px-4 py-2 rounded-chat font-semibold text-sm hover:border-chatNavy transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
+                className="bg-white border border-baseBorder text-baseText px-4 py-2 rounded-ui font-semibold text-sm hover:border-brandNavy transition-all shadow-ui focus:outline-none focus:ring-2 focus:ring-brandNavy focus:ring-offset-2"
               >
                 초대
               </button>
             )}
             <button
               onClick={handleLeaveRoom}
-              className="bg-white border border-chatBorder text-chatText px-4 py-2 rounded-chat font-semibold text-sm hover:border-chatOrange transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatOrange focus:ring-offset-2"
+              className="bg-white border border-baseBorder text-baseText px-4 py-2 rounded-ui font-semibold text-sm hover:border-brandOrange transition-all shadow-ui focus:outline-none focus:ring-2 focus:ring-brandOrange focus:ring-offset-2"
             >
               나가기
             </button>
@@ -410,22 +524,28 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
 
       {/* Messages (scroll) */}
       <div className="flex-1 overflow-hidden w-full">
-        <div className="h-full bg-chatSurface overflow-hidden flex flex-col">
+        <div className="h-full bg-baseSurface overflow-hidden flex flex-col">
           <div
             ref={chatContainerRef}
-            onScroll={onScroll}
+            onScroll={handleScroll}
             className="h-full overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-3"
           >
             {loading ? (
-              <div className="text-center text-chatMuted mt-8">
+              <div className="text-center text-baseMuted mt-8">
                 <p className="text-base font-medium">메시지를 불러오는 중...</p>
               </div>
             ) : Array.isArray(visibleMessages) && visibleMessages.length === 0 ? (
-              <div className="text-center text-chatMuted mt-8">
+              <div className="text-center text-baseMuted mt-8">
                 <p className="text-base font-medium">메시지가 없습니다.</p>
                 <p className="text-sm mt-2">대화를 시작해보세요.</p>
               </div>
             ) : null}
+
+            {loadingMore && (
+              <div className="text-center text-baseMuted py-4">
+                <p className="text-sm">이전 메시지를 불러오는 중...</p>
+              </div>
+            )}
 
             {Array.isArray(visibleMessages) &&
               visibleMessages.map((msg) => (
@@ -433,16 +553,16 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
                   <div className={`max-w-[75%] sm:max-w-md ${msg.senderId !== currentUserId ? "flex flex-col" : ""}`}>
                     {/* 그룹 채팅: 발신자 표시 */}
                     {chatRoomInfo?.isGroup && msg.senderId !== currentUserId && (
-                      <div className="text-xs text-chatMuted mb-1 px-2 font-medium">
+                      <div className="text-xs text-baseMuted mb-1 px-2 font-medium">
                         {msg.senderNickname || msg.senderId}
                       </div>
                     )}
 
                     <div
-                      className={`px-4 py-2.5 rounded-chatLg ${
+                      className={`px-4 py-2.5 rounded-ui ${
                         msg.senderId === currentUserId
-                          ? "bg-chatNavy text-white"
-                          : "bg-chatBg text-chatText border border-chatBorder"
+                          ? "bg-brandNavy text-white"
+                          : "bg-baseBg text-baseText border border-baseBorder"
                       }`}
                     >
                       {msg.isTicketPreview ? (
@@ -450,10 +570,10 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
                           onClick={() => handleTicketPreviewClick(msg.ticketId)}
                           className="cursor-pointer hover:opacity-80 transition-opacity"
                         >
-                          <div className={`font-semibold mb-1 text-sm ${msg.senderId === currentUserId ? "text-white" : "text-chatText"}`}>
+                          <div className={`font-semibold mb-1 text-sm ${msg.senderId === currentUserId ? "text-white" : "text-baseText"}`}>
                             🎫 티켓 미리보기
                           </div>
-                          <div className={`text-xs ${msg.senderId === currentUserId ? "opacity-90" : "text-chatMuted"}`}>
+                          <div className={`text-xs ${msg.senderId === currentUserId ? "opacity-90" : "text-baseMuted"}`}>
                             클릭하여 티켓 정보 확인
                           </div>
                         </div>
@@ -461,7 +581,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
                         <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</div>
                       )}
 
-                      <div className={`text-xs mt-1.5 flex items-center gap-1.5 ${msg.senderId === currentUserId ? "text-white/80" : "text-chatMuted"}`}>
+                      <div className={`text-xs mt-1.5 flex items-center gap-1.5 ${msg.senderId === currentUserId ? "text-white/80" : "text-baseMuted"}`}>
                         <span>
                           {new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
                             hour: "2-digit",
@@ -469,7 +589,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
                           })}
                         </span>
                         {msg.senderId !== currentUserId && msg.isRead === false && (
-                          <span className="text-chatOrange">●</span>
+                          <span className="text-brandOrange">●</span>
                         )}
                       </div>
                     </div>
@@ -483,7 +603,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 w-full px-4 lg:px-6 py-4 border-t border-chatBorder bg-chatBg">
+      <div className="shrink-0 w-full px-4 lg:px-6 py-4 border-t border-baseBorder bg-baseBg">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1 flex gap-2">
             <input
@@ -492,18 +612,18 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="메시지를 입력하세요..."
-              className="flex-1 px-4 py-2.5 border border-chatBorder rounded-chat bg-chatBg text-chatText placeholder-chatMuted focus:outline-none focus:ring-2 focus:ring-chatNavy focus:border-chatNavy text-sm"
+              className="flex-1 px-4 py-2.5 border border-baseBorder rounded-ui bg-baseBg text-baseText placeholder-baseMuted focus:outline-none focus:ring-2 focus:ring-brandNavy focus:border-brandNavy text-sm"
               disabled={!connected}
             />
             {/* AI 메시지 처리 토글 버튼 */}
             <button
               type="button"
               onClick={() => setAiEnabled(!aiEnabled)}
-              className={`px-4 py-2.5 rounded-chat font-semibold text-xs transition-all ${
+              className={`px-4 py-2.5 rounded-ui font-semibold text-xs transition-all ${
                 aiEnabled
-                  ? "bg-chatNavy text-white hover:opacity-90 shadow-chat"
-                  : "bg-white border border-chatBorder text-chatText hover:border-chatNavy shadow-chat"
-              } focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2`}
+                  ? "bg-brandNavy text-white hover:opacity-90 shadow-ui"
+                  : "bg-white border border-baseBorder text-baseText hover:border-brandNavy shadow-ui"
+              } focus:outline-none focus:ring-2 focus:ring-brandNavy focus:ring-offset-2`}
               title={aiEnabled ? "AI 메시지 처리 ON" : "AI 메시지 처리 OFF"}
             >
               AI {aiEnabled ? "ON" : "OFF"}
@@ -513,13 +633,13 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
             <button
               onClick={handleSendMessage}
               disabled={!connected || !inputMessage.trim()}
-              className="bg-chatNavy text-white px-6 py-2.5 rounded-chat font-semibold text-sm hover:opacity-90 disabled:bg-chatMuted disabled:cursor-not-allowed transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2 disabled:opacity-50"
+              className="bg-brandNavy text-white px-6 py-2.5 rounded-ui font-semibold text-sm hover:opacity-90 disabled:bg-baseMuted disabled:cursor-not-allowed transition-all shadow-ui focus:outline-none focus:ring-2 focus:ring-brandNavy focus:ring-offset-2 disabled:opacity-50"
             >
               전송
             </button>
             <button
               onClick={() => navigate("/chat")}
-              className="bg-white border border-chatBorder text-chatText px-4 py-2.5 rounded-chat font-semibold text-sm hover:border-chatNavy transition-all shadow-chat focus:outline-none focus:ring-2 focus:ring-chatNavy focus:ring-offset-2"
+              className="bg-white border border-baseBorder text-baseText px-4 py-2.5 rounded-ui font-semibold text-sm hover:border-brandNavy transition-all shadow-ui focus:outline-none focus:ring-2 focus:ring-brandNavy focus:ring-offset-2"
             >
               목록
             </button>

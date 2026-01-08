@@ -565,7 +565,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     <div className="ai-widget-overlay">
       <div className="ai-widget-container">
         <div className="ai-widget-header">
-          <h2>🤖 AI 업무 비서</h2>
+          <h2>AI 업무 비서</h2>
           <button className="close-btn" onClick={onClose}>
             &times;
           </button>
@@ -675,7 +675,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
                     onClick={handleReset}
                     style={{ padding: "5px 10px", borderRadius: "4px", fontSize: "13px" }}
                   >
-                    🔄
+                    초기화
                   </button>
                 </div>
                 <div style={{ flex: 1, minHeight: 0 }}>
@@ -704,67 +704,12 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
                         fontSize: "13px",
                       }}
                     >
-                      🔄
+                      초기화
                     </button>
                   </div>
                 </div>
 
                 <div className="ticket-preview-box" ref={pdfRef}>
-              {/* {aiSummary && (
-                <div
-                  style={{
-                    border: "2px solid #6366f1",
-                    padding: "15px",
-                    marginBottom: "20px",
-                    backgroundColor: "#f5f3ff",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <div
-                    className="summary-title"
-                    style={{ fontWeight: "bold", marginBottom: "10px" }}
-                  >
-                    <span>🤖</span> AI 요약 리포트
-                  </div>
-                  {typeof aiSummary === "string" ? (
-                    <p style={{ margin: 0, color: "#374151" }}>{aiSummary}</p>
-                  ) : (
-                    <table
-                      className="summary-table"
-                      style={{ width: "100%", fontSize: "13px" }}
-                    >
-                      <tbody>
-                        <tr>
-                          <th style={{ textAlign: "left", width: "100px" }}>
-                            회의 제목
-                          </th>
-                          <td>{aiSummary.title || "-"}</td>
-                        </tr>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>참석자</th>
-                          <td>
-                            {Array.isArray(aiSummary.attendees)
-                              ? aiSummary.attendees.join(", ")
-                              : aiSummary.attendees || "-"}
-                          </td>
-                        </tr>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>개요</th>
-                          <td>{aiSummary.overview || "-"}</td>
-                        </tr>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>상세</th>
-                          <td>{aiSummary.details || "-"}</td>
-                        </tr>
-                        <tr>
-                          <th style={{ textAlign: "left" }}>결론</th>
-                          <td>{aiSummary.conclusion || "-"}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )} */}
 
               <div className="form-group">
                 <label>

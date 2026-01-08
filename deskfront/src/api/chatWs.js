@@ -1,7 +1,55 @@
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { getCookie } from "../util/cookieUtil";
-import { API_SERVER_HOST } from "./memberApi";
+const API_SERVER_HOST = process.env.REACT_APP_API_SERVER_HOST;
+
+/**
+ * XMLHttpRequest 인터셉터: SockJS의 /ws/info 요청에 Authorization 헤더 추가
+ */
+const setupXHRInterceptor = () => {
+  const originalOpen = XMLHttpRequest.prototype.open;
+  const originalSend = XMLHttpRequest.prototype.send;
+
+  // 요청 URL을 저장하기 위한 WeakMap
+  const requestUrls = new WeakMap();
+  // Authorization 헤더 추가 여부를 추적하기 위한 WeakSet
+  const headersAdded = new WeakSet();
+
+  XMLHttpRequest.prototype.open = function(method, url, ...args) {
+    // /ws 경로 요청인지 확인
+    if (typeof url === 'string' && url.includes('/ws')) {
+      requestUrls.set(this, url);
+      headersAdded.delete(this); // 초기화
+    }
+    return originalOpen.apply(this, [method, url, ...args]);
+  };
+
+  XMLHttpRequest.prototype.send = function(...args) {
+    const url = requestUrls.get(this);
+    
+    // /ws 경로 요청이고 아직 Authorization 헤더가 추가되지 않은 경우
+    if (url && url.includes('/ws') && !headersAdded.has(this)) {
+      const memberInfo = getCookie("member");
+      if (memberInfo && memberInfo.accessToken) {
+        // setRequestHeader를 직접 호출하여 헤더 추가
+        XMLHttpRequest.prototype.setRequestHeader.call(
+          this, 
+          'Authorization', 
+          `Bearer ${memberInfo.accessToken}`
+        );
+        headersAdded.add(this);
+      }
+    }
+    
+    return originalSend.apply(this, args);
+  };
+};
+
+// XMLHttpRequest 인터셉터 설정 (한 번만 실행)
+if (typeof window !== 'undefined' && !window.__sockjsXHRInterceptorSetup) {
+  setupXHRInterceptor();
+  window.__sockjsXHRInterceptorSetup = true;
+}
 
 /**
  * WebSocket 채팅 클라이언트

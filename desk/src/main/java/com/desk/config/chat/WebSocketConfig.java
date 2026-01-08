@@ -1,5 +1,6 @@
 package com.desk.config.chat;
 
+import com.desk.dto.MemberDTO;
 import com.desk.util.JWTUtil;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,8 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -49,10 +52,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (accessor == null) return message;
 
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                    // 1순위: SecurityContext에서 인증 정보 가져오기 (JWTCheckFilter에서 설정됨)
+                    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                    
+                    if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof MemberDTO) {
+                        MemberDTO memberDTO = (MemberDTO) auth.getPrincipal();
+                        accessor.setUser((Principal) () -> memberDTO.getEmail());
+                        log.info("[WebSocket] SecurityContext 기반 인증 성공 | email={}", memberDTO.getEmail());
+                        return message;
+                    }
+                    
+                    // 2순위: SecurityContext에 없으면 헤더에서 직접 확인 (폴백)
                     List<String> authHeaders = accessor.getNativeHeader("Authorization");
 
                     if (authHeaders == null || authHeaders.isEmpty()) {
-                        log.warn("[WebSocket] Authorization 헤더 없음");
+                        log.warn("[WebSocket] Authorization 헤더 없음 (SecurityContext에도 없음)");
                         return null;
                     }
 
@@ -73,7 +87,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         }
 
                         accessor.setUser((Principal) () -> email);
-                        log.info("[WebSocket] 인증 성공 | email={}", email);
+                        log.info("[WebSocket] 헤더 기반 인증 성공 (폴백) | email={}", email);
                     } catch (Exception e) {
                         log.warn("[WebSocket] 인증 실패 | error={}", e.getMessage());
                         return null;
