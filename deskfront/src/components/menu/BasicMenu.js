@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../../slices/loginSlice";
+import { useSelector } from "react-redux";
 import CommonModal from "../common/CommonModal";
 import useCustomLogin from "../../hooks/useCustomLogin";
 import AIAssistantModal from "./AIAssistantModal"; // 통합 AI 비서 모달 (채팅 + 업무티켓)
@@ -9,9 +8,8 @@ import useCustomPin from "../../hooks/useCustomPin";
 
 const BasicMenu = () => {
   const loginState = useSelector((state) => state.loginSlice);
-  const dispatch = useDispatch();
   const location = useLocation();
-  const { moveToPath } = useCustomLogin();
+  const { moveToPath, doLogout } = useCustomLogin();
   const { resetPins } = useCustomPin();
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -25,8 +23,8 @@ const BasicMenu = () => {
     setIsLogoutModalOpen(true);
     setIsMobileMenuOpen(false);
   };
-  const handleConfirmLogout = () => {
-    dispatch(logout());
+  const handleConfirmLogout = async () => {
+    await doLogout();
     resetPins();
     setIsLogoutModalOpen(false);
     setIsMobileMenuOpen(false);
