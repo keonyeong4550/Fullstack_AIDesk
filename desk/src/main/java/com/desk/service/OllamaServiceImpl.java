@@ -7,14 +7,14 @@ import com.desk.repository.MemberRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-// ▼▼▼ Java 기본 유틸리티 및 I/O (이 부분이 중요합니다) ▼▼▼
 import java.util.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-// ▼▼▼ Spring 관련 ▼▼▼
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -24,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-// ▼▼▼ PDF 관련 (iText) ▼▼▼
 import com.itextpdf.io.font.PdfEncodings;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
@@ -50,12 +49,33 @@ public class OllamaServiceImpl implements OllamaService {
     private final OllamaConfig ollamaConfig;
     private final MemberRepository memberRepository; // 담당자
 
+    // 정규화 규칙 (순서 중요: LinkedHashMap) -> 가장 먼저 실행됨
+    private final LinkedHashMap<Pattern, String> normalizeRules = new LinkedHashMap<>();
     // ✅ 불용어 목록 정의 (회의 중 자주 나오는 쓸데없는 말들)
     private List<String> stopWords = new ArrayList<>();
+    // 불용어 리스트
+    private final Set<String> stopWordSet = new HashSet<>();
+    private final List<Pattern> stopRegexList = new ArrayList<>();
 
+    // 하드코딩된 필수 패턴
+    private Pattern leadingFillerPattern;  // 문장 시작 말잇기
+    private Pattern trailingEndingPattern; // 문장 끝 어미 압축
+    private static final Pattern TIMESTAMP_PATTERN = Pattern.compile("\\d{1,2}:\\d{2}");
 
     @PostConstruct
     public void initStopWords() {
+
+        log.info("정규화 규칙 로드, 불용어 로드, 필수 패턴 컴파일");
+
+        // [1단계] 정규화 규칙 로드 (normalize-rules.txt)
+        loadNormalizeRules();
+
+        // [2단계] 불용어 로드 (stopwords.txt)
+        loadStopWords();
+
+        // [3단계] 필수 패턴 컴파일
+        initEssentialPatterns();
+
         log.info("Loading stopwords from stopwords.txt...");
 
         // ClassPathResource는 src/main/resources 폴더를 가리킵니다.
@@ -83,6 +103,155 @@ public class OllamaServiceImpl implements OllamaService {
         }
     }
 
+    private void loadNormalizeRules() {
+        normalizeRules.clear();
+        String filename = "normalize-rules.txt"; // resources 루트 경로
+        ClassPathResource resource = new ClassPathResource(filename);
+
+        try (InputStream is = resource.getInputStream();
+             BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                String s = line.trim();
+                // 주석(#)이나 빈 줄 건너뛰기
+                if (s.isEmpty() || s.startsWith("#")) continue;
+
+                // "패턴 => 변경값" 형식 파싱
+                int sep = s.indexOf("=>");
+                if (sep < 0) continue;
+
+                String regex = s.substring(0, sep).trim();
+                String repl = s.substring(sep + 2).trim();
+
+                if (!regex.isEmpty()) {
+                    // 대소문자 구분 없이 매칭 (UNICODE_CASE)
+                    normalizeRules.put(Pattern.compile(regex, Pattern.UNICODE_CASE), repl);
+                }
+            }
+            log.info("[초기화] {} 로드 완료: 규칙 {}개 적용 예정", filename, normalizeRules.size());
+
+        } catch (IOException e) {
+            log.warn("{} 파일을 찾을 수 없습니다. (정규화 단계 건너뜀)", filename);
+        }
+    }
+    private void loadStopWords() {
+        stopWordSet.clear();
+        stopRegexList.clear();
+        String filename = "stopwords.txt"; // resources 루트 경로
+        ClassPathResource resource = new ClassPathResource(filename);
+
+        try (InputStream inputStream = resource.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String raw = line.trim();
+                if (raw.isEmpty() || raw.startsWith("#")) continue;
+
+                if (raw.startsWith("re:")) {
+                    stopRegexList.add(Pattern.compile(raw.substring(3).trim()));
+                } else {
+                    stopWordSet.add(raw);
+                }
+            }
+            log.info("[초기화] {} 로드 완료: 단어 {}개 / 정규식 {}개", filename, stopWordSet.size(), stopRegexList.size());
+
+        } catch (IOException e) {
+            log.warn("{} 파일을 찾을 수 없습니다. (기본 불용어 처리만 수행)", filename);
+        }
+    }
+    private void initEssentialPatterns() {
+        leadingFillerPattern = Pattern.compile(
+                "^(?:아+|어+|음+|그+|저+|이제|일단|그러니까|그래서|근데|아무튼|어쨌든|하여튼|사실|약간|좀|뭐랄까|혹시)\\s*",
+                Pattern.UNICODE_CASE
+        );
+        trailingEndingPattern = Pattern.compile(
+                "(?:\\s*(?:거든요|잖아요|인데요|네요|죠|요|합니다|됩니다|했어요|할게요))\\s*(?=[.?!]|$)",
+                Pattern.UNICODE_CASE
+        );
+    }
+
+    // ==========================================================
+    // 3. 텍스트 처리 파이프라인 (정규화 -> 불용어 제거)
+    // ==========================================================
+    private String processTextPipeline(String text) {
+        if (text == null || text.isBlank()) return "";
+
+        String processing = text;
+
+        // [STEP 1] 정규화 규칙 적용 (가장 먼저 실행!)
+        // normalize-rules.txt에 정의된 규칙대로 텍스트를 먼저 변환합니다.
+        // 예: "그렇죠" -> "." (불필요한 서술어를 기호로 압축)
+        if (!normalizeRules.isEmpty()) {
+            for (Map.Entry<Pattern, String> entry : normalizeRules.entrySet()) {
+                processing = entry.getKey().matcher(processing).replaceAll(entry.getValue());
+            }
+        }
+
+        // [STEP 2] 불용어 제거 및 라인 최적화
+        // 정규화된 텍스트를 바탕으로 나머지 잡음을 제거합니다.
+        return removeStopWordsAndOptimize(processing);
+    }
+
+    private String removeStopWordsAndOptimize(String text) {
+        String[] lines = text.replace("\r\n", "\n").split("\n");
+        StringBuilder sb = new StringBuilder(text.length());
+
+        List<String> sortedWords = new ArrayList<>(stopWordSet);
+        sortedWords.sort((a, b) -> Integer.compare(b.length(), a.length()));
+
+        for (String line : lines) {
+            String s = line.trim();
+            if (s.isEmpty()) continue;
+
+            // 타임스탬프 제거
+            s = TIMESTAMP_PATTERN.matcher(s).replaceAll(" ");
+
+            // 문장 시작 말잇기 제거
+            while (true) {
+                String next = leadingFillerPattern.matcher(s).replaceFirst("");
+                if (next.equals(s)) break;
+                s = next.trim();
+            }
+
+            // 불용어 파일 정규식 제거
+            boolean dropLine = false;
+            for (Pattern p : stopRegexList) {
+                if (p.matcher(s).find() && p.pattern().startsWith("^") && p.pattern().endsWith("$")) {
+                    dropLine = true;
+                    break;
+                }
+                s = p.matcher(s).replaceAll(" ");
+            }
+            if (dropLine) continue;
+
+            // 불용어 단어 제거
+            for (String w : sortedWords) {
+                if (w.isBlank()) continue;
+                String escaped = Pattern.quote(w);
+                s = s.replaceAll("(?u)(^|\\s)" + escaped + "(?=\\s|[,.!?]|$)", " ");
+            }
+
+            // 문장 끝 어미 압축
+            s = trailingEndingPattern.matcher(s).replaceAll("");
+
+            // 공백 정리
+            s = s.replaceAll("\\s{2,}", " ").trim();
+
+            // 짧은 무의미한 라인 삭제
+            if (s.length() <= 5 && s.matches("(?u)^(네|예|응|맞아요|그렇죠|알겠|좋|확인|진행)$")) {
+                continue;
+            }
+
+            if (!s.isEmpty()) {
+                sb.append(s).append("\n");
+            }
+        }
+        return sb.toString().trim();
+    }
+
+
     // [수정] 파일과 텍스트를 받아서 AI에게 요청
     @Override
     public MeetingMinutesDTO getMeetingInfoFromAi(MultipartFile file, String title, String content, String purpose, String requirement) {
@@ -107,17 +276,23 @@ public class OllamaServiceImpl implements OllamaService {
             }
         }
 
-        String finalContent = extractedText.toString();
-
+//        String finalContent = extractedText.toString();
+        String rawContent = extractedText.toString();
         // [중요] 가상의 회의록 생성 금지: 내용이 아예 없으면 에러 발생시킴
-        if (finalContent.trim().isEmpty()) {
-            throw new RuntimeException("분석할 내용이 없습니다. 내용을 입력하거나 파일을 첨부해주세요.");
+//        if (finalContent.trim().isEmpty()) {
+//            throw new RuntimeException("분석할 내용이 없습니다. 내용을 입력하거나 파일을 첨부해주세요.");
+//        }
+        if (rawContent.trim().isEmpty()) {
+            throw new RuntimeException("분석할 내용이 없습니다.");
         }
 
-        String cleanedText = removeStopWords(finalContent);
-        log.info("[원본 텍스트] (길이: {}) → [불용어 제거 후 텍스트] (길이: {})", finalContent.length(), cleanedText.length());
+        //파이프라인 호출 (정규화 -> 불용어)
+        String cleanedText = processTextPipeline(rawContent);
+
+//        String cleanedText = removeStopWords(finalContent);
+        log.info("[원본 텍스트] (길이: {}) → [불용어 제거 후 텍스트] (길이: {})", rawContent.length(), cleanedText.length());
         log.info("==================================================");
-        log.info("📄 [원본 텍스트] (길이: {}): \n{}", finalContent.length(), finalContent);
+        log.info("📄 [원본 텍스트] (길이: {}): \n{}", rawContent.length(), rawContent);
         log.info("--------------------------------------------------");
         log.info("🧹 [불용어 제거 후 텍스트] (길이: {}): \n{}", cleanedText.length(), cleanedText);
         log.info("==================================================");
@@ -151,7 +326,9 @@ public class OllamaServiceImpl implements OllamaService {
                         "}\n\n" +
                         "### 입력 데이터 ###\n" +
                         "제목: %s\n목적: %s\n요구사항: %s\n본문 및 파일내용:\n%s",
-                title, purpose, requirement, finalContent
+                title, purpose, requirement,
+//                finalContent
+                cleanedText
         );
 
         // ... (이하 requestBody 생성 및 RestTemplate 호출 로직은 기존과 동일) ...
