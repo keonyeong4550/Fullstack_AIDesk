@@ -63,8 +63,18 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
   const chatContainerRef = useRef(null);
   const lastMessageIdRef = useRef(null); // 마지막 메시지 ID 추적 (새 메시지 감지용)
 
-  // 무한 스크롤 훅
-  const { visibleMessages, onScroll: infiniteChatOnScroll, scrollToBottom, setContainerRef, reset } = useInfiniteChat(messages, 30);
+  // 무한 스크롤 훅 (가상 스크롤링)
+  const { 
+    visibleMessages, 
+    startIndex,
+    topPadding, 
+    bottomPadding, 
+    onScroll: infiniteChatOnScroll, 
+    scrollToBottom, 
+    setContainerRef, 
+    reset,
+    measureItemHeight 
+  } = useInfiniteChat(messages, 80, 5);
 
   // 컨테이너 ref 설정
   useEffect(() => {
@@ -147,18 +157,26 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     }
   }, [chatRoomId, currentUserId, loadingMore, hasMore, chatRoomInfo, otherUserId, pageSize]);
 
-  // 커스텀 스크롤 핸들러 (무한 스크롤 + 이전 메시지 로드)
+  // 이전 메시지 로드 이벤트 리스너
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleLoadPrevious = () => {
+      if (hasMore && !loadingMore && !loading) {
+        loadPreviousMessages();
+      }
+    };
+
+    container.addEventListener('loadPreviousMessages', handleLoadPrevious);
+    return () => {
+      container.removeEventListener('loadPreviousMessages', handleLoadPrevious);
+    };
+  }, [hasMore, loadingMore, loading, loadPreviousMessages]);
+
+  // 커스텀 스크롤 핸들러
   const handleScroll = (e) => {
-    const el = e.target;
-    if (!el) return;
-
-    // useInfiniteChat의 스크롤 핸들러 호출
     infiniteChatOnScroll(e);
-
-    // 스크롤이 최상단에 가까우면 이전 메시지 로드
-    if (el.scrollTop < 100 && hasMore && !loadingMore && !loading) {
-      loadPreviousMessages();
-    }
   };
 
   // 메시지 로드 (초기 로드)
@@ -210,7 +228,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
     };
 
     loadInitialMessages();
-  }, [chatRoomId, currentUserId]);
+  }, [chatRoomId, currentUserId, pageSize, chatRoomInfo, otherUserId]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -751,7 +769,7 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
           <div
             ref={chatContainerRef}
             onScroll={handleScroll}
-            className="h-full overflow-y-auto px-4 lg:px-6 py-4 lg:py-6 space-y-3"
+            className="h-full overflow-y-auto px-4 lg:px-6 py-4 lg:py-6"
           >
             {loading ? (
               <div className="text-center text-baseMuted mt-8">
@@ -770,72 +788,96 @@ const ChatRoom = ({ chatRoomId, currentUserId, otherUserId, chatRoomInfo }) => {
               </div>
             )}
 
-            {Array.isArray(visibleMessages) &&
-              visibleMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] sm:max-w-md ${msg.senderId !== currentUserId ? "flex flex-col" : ""}`}>
-                    {/* 그룹 채팅: 발신자 표시 */}
-                    {chatRoomInfo?.isGroup && msg.senderId !== currentUserId && (
-                      <div className="text-xs text-baseMuted mb-1 px-2 font-medium">
-                        {msg.senderNickname || msg.senderId}
-                      </div>
-                    )}
+            {/* 상단 패딩 (보이지 않는 위쪽 영역) */}
+            {topPadding > 0 && (
+              <div style={{ height: `${topPadding}px` }} />
+            )}
 
-                    {/* 메시지 컨테이너 - relative로 배지 위치 지정 */}
-                    <div className="relative inline-block">
-                      <div
-                        className={`px-4 py-2.5 rounded-ui ${
-                          msg.senderId === currentUserId
-                            ? "bg-brandNavy text-white"
-                            : "bg-baseBg text-baseText border border-baseBorder"
-                        }`}
-                      >
-                        {msg.isTicketPreview ? (
-                          <div
-                            onClick={() => handleTicketPreviewClick(msg.ticketId)}
-                            className="cursor-pointer hover:opacity-80 transition-opacity"
-                          >
-                            <div className={`font-semibold mb-1 text-sm ${msg.senderId === currentUserId ? "text-white" : "text-baseText"}`}>
-                              🎫 티켓 미리보기
+            {/* 메시지 렌더링 */}
+            {Array.isArray(visibleMessages) &&
+              visibleMessages.map((msg, index) => {
+                const actualIndex = startIndex + index;
+                return (
+                  <div
+                    key={msg.id}
+                    ref={(el) => {
+                      // 각 메시지의 실제 높이 측정
+                      if (el) {
+                        const height = el.offsetHeight;
+                        measureItemHeight(actualIndex, height);
+                      }
+                    }}
+                    className={`mb-3 flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}
+                  >
+                    <div className={`max-w-[75%] sm:max-w-md ${msg.senderId !== currentUserId ? "flex flex-col" : ""}`}>
+                      {/* 그룹 채팅: 발신자 표시 */}
+                      {chatRoomInfo?.isGroup && msg.senderId !== currentUserId && (
+                        <div className="text-xs text-baseMuted mb-1 px-2 font-medium">
+                          {msg.senderNickname || msg.senderId}
+                        </div>
+                      )}
+
+                      {/* 메시지 컨테이너 - relative로 배지 위치 지정 */}
+                      <div className="relative inline-block">
+                        <div
+                          className={`px-4 py-2.5 rounded-ui ${
+                            msg.senderId === currentUserId
+                              ? "bg-brandNavy text-white"
+                              : "bg-baseBg text-baseText border border-baseBorder"
+                          }`}
+                        >
+                          {msg.isTicketPreview ? (
+                            <div
+                              onClick={() => handleTicketPreviewClick(msg.ticketId)}
+                              className="cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              <div className={`font-semibold mb-1 text-sm ${msg.senderId === currentUserId ? "text-white" : "text-baseText"}`}>
+                                🎫 티켓 미리보기
+                              </div>
+                              <div className={`text-xs ${msg.senderId === currentUserId ? "opacity-90" : "text-baseMuted"}`}>
+                                클릭하여 티켓 정보 확인
+                              </div>
                             </div>
-                            <div className={`text-xs ${msg.senderId === currentUserId ? "opacity-90" : "text-baseMuted"}`}>
-                              클릭하여 티켓 정보 확인
-                            </div>
+                          ) : (
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</div>
+                          )}
+
+                          <div className={`text-xs mt-1.5 flex items-center gap-1.5 ${msg.senderId === currentUserId ? "text-white/80" : "text-baseMuted"}`}>
+                            <span>
+                              {new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
                           </div>
-                        ) : (
-                          <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</div>
+                        </div>
+
+                        {/* 보낸 사람(내가 보낸 메시지): 좌측 하단에 안 읽은 사람 수 표시 */}
+                        {msg.senderId === currentUserId && 
+                         msg.unreadCount != null && 
+                         msg.unreadCount > 0 && (
+                          <span className="absolute -left-3 bottom-0 text-brandNavy text-xs font-semibold">
+                            {msg.unreadCount}
+                          </span>
                         )}
 
-                        <div className={`text-xs mt-1.5 flex items-center gap-1.5 ${msg.senderId === currentUserId ? "text-white/80" : "text-baseMuted"}`}>
-                          <span>
-                            {new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                        {/* 받은 사람(상대방이 보낸 메시지): 우측 하단에 읽지 않았으면 표시 */}
+                        {msg.senderId !== currentUserId && 
+                         msg.isRead === false && (
+                          <span className="absolute -right-3 bottom-0 text-brandNavy text-xs font-semibold">
+                            1
                           </span>
-                        </div>
+                        )}
                       </div>
-
-                      {/* 보낸 사람(내가 보낸 메시지): 좌측 하단에 안 읽은 사람 수 표시 */}
-                      {msg.senderId === currentUserId && 
-                       msg.unreadCount != null && 
-                       msg.unreadCount > 0 && (
-                        <span className="absolute -left-3 bottom-0 text-brandNavy text-xs font-semibold">
-                          {msg.unreadCount}
-                        </span>
-                      )}
-
-                      {/* 받은 사람(상대방이 보낸 메시지): 우측 하단에 읽지 않았으면 표시 */}
-                      {msg.senderId !== currentUserId && 
-                       msg.isRead === false && (
-                        <span className="absolute -right-3 bottom-0 text-brandNavy text-xs font-semibold">
-                          1
-                        </span>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+
+            {/* 하단 패딩 (보이지 않는 아래쪽 영역) */}
+            {bottomPadding > 0 && (
+              <div style={{ height: `${bottomPadding}px` }} />
+            )}
 
             <div ref={messagesEndRef} />
           </div>
