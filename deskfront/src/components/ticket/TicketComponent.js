@@ -6,6 +6,7 @@ import PageComponent from '../common/PageComponent';
 import useCustomPin from '../../hooks/useCustomPin';
 import { getGradeBadge, getStateLabel, formatDate } from '../../util/ticketUtils';
 import TicketDetailModal from './TicketDetailModal';
+import LoadingModal from '../common/LoadingModal';
 
 const TicketComponent = () => {
   const loginState = useSelector((state) => state.loginSlice);
@@ -258,7 +259,7 @@ const TicketComponent = () => {
 
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="p-20 text-center text-baseMuted">로딩 중...</td></tr>
+                <tr><td colSpan="7" className="p-20 text-center text-baseMuted"></td></tr>
               ) : serverData.dtoList?.length > 0 ? (
                 serverData.dtoList.map((ticket) => {
                   const myInfo = ticket.personals?.find(p => p.receiver === currentUserEmail);
@@ -303,7 +304,7 @@ const TicketComponent = () => {
         {/* 모바일/태블릿 카드 뷰 */}
         <div className="lg:hidden flex-grow p-4 space-y-3">
           {loading ? (
-            <div className="p-20 text-center text-baseMuted">로딩 중...</div>
+            <div className="p-20 text-center text-baseMuted"></div>
           ) : serverData.dtoList?.length > 0 ? (
             serverData.dtoList.map((ticket) => {
               const myInfo = ticket.personals?.find(p => p.receiver === currentUserEmail);
@@ -378,6 +379,8 @@ const TicketComponent = () => {
       {isModalOpen && selectedTno && (
         <TicketDetailModal tno={selectedTno} onClose={closeTicketModal} onDelete={handleDeleted} />
       )}
+
+      <LoadingModal isOpen={loading} message="로딩 중입니다" />
     </div>
   );
 };

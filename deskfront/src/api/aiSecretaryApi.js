@@ -45,13 +45,15 @@ export const aiSecretaryApi = {
               new Blob([JSON.stringify(data)], { type: "application/json" })
             );
 
+      // FormData를 사용할 때는 Content-Type 헤더를 명시적으로 설정하지 않아야 합니다.
+      // axios가 자동으로 boundary를 포함한 올바른 multipart/form-data 헤더를 설정합니다.
       const response = await jwtAxios.post(
         `${API_SERVER_HOST}/api/ai/summary`,
         formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          timeout: 0, // 60초 타임아웃 (대용량 파일 업로드 고려)
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
         }
       );
       return response.data; // MeetingMinutesDto 반환

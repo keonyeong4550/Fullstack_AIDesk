@@ -7,9 +7,10 @@ import fileRouter from "./fileRouter";
 import boardRouter from "./boardRouter";
 import chatRouter from "./chatRouter";
 import BoardIndex from "../pages/board/IndexPage";
+import LoadingModal from "../components/common/LoadingModal";
 
 
-const Loading = <div>Loading....</div>;
+const Loading = <LoadingModal isOpen={true} message="로딩 중입니다" />;
 
 const Main = lazy(() => import("../pages/MainPage"));
 const TicketIndex = lazy(() => import("../pages/ticket/IndexPage"));

@@ -1,7 +1,8 @@
 import { Suspense, lazy } from "react";
 import { Navigate } from "react-router-dom";
+import LoadingModal from "../components/common/LoadingModal";
 
-const Loading = <div className="p-10 font-bold text-2xl">Loading....</div>;
+const Loading = <LoadingModal isOpen={true} message="로딩 중입니다" />;
 const AdminPage = lazy(() => import("../pages/admin/AdminPage"));
 
 const adminRouter = () => {

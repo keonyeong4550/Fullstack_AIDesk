@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getOne } from "../../api/boardApi";
 import useCustomMove from "../../hooks/useCustomMove";
-import FetchingModal from "../common/FetchingModal";
+import LoadingModal from "../common/LoadingModal";
 import { useSelector } from "react-redux";
 import ReplyComponent from "./ReplyComponent";
 
@@ -40,7 +40,7 @@ const ReadComponent = ({ bno }) => {
 
   return (
     <div className="ui-container py-8 space-y-8 bg-baseBg min-h-screen">
-      {fetching && <FetchingModal />}
+      <LoadingModal isOpen={fetching} message="로딩 중입니다" />
 
       {/* 1. 상단 타이틀 섹션 */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6">

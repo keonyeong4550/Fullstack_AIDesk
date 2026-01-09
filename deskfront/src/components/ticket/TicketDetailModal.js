@@ -6,6 +6,7 @@ import { useTicketActions } from "../../hooks/useTicketActions";
 import { getGradeBadge, getStateLabel, formatDate } from "../../util/ticketUtils";
 import FilePreview from "../common/FilePreview";
 import useCustomPin from "../../hooks/useCustomPin";
+import LoadingModal from "../common/LoadingModal";
 
 // 모달 애니메이션 스타일
 const modalStyles = `
@@ -147,16 +148,10 @@ const TicketDetailModal = ({ tno, onClose, onDelete }) => {
     }
   };
 
+  if (!tno) return null;
+  
   if (loading || !ticket) {
-    if (!tno) return null;
-    return (
-      <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 text-white font-black transition-opacity duration-200 ease-out"
-        style={{ opacity: 1, animation: 'fadeIn 0.2s ease-out' }}
-      >
-        로딩 중...
-      </div>
-    );
+    return <LoadingModal isOpen={true} message="로딩 중입니다" />;
   }
 
   if (!tno) return null;

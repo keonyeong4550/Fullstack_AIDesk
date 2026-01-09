@@ -2,7 +2,7 @@ import { useState } from "react";
 import { postAdd } from "../../api/boardApi";
 import useCustomMove from "../../hooks/useCustomMove";
 import useCustomLogin from "../../hooks/useCustomLogin";
-import FetchingModal from "../common/FetchingModal";
+import LoadingModal from "../common/LoadingModal";
 
 const AddComponent = () => {
   const [board, setBoard] = useState({
@@ -40,7 +40,7 @@ const AddComponent = () => {
 
   return (
     <div className="ui-container py-8 space-y-8 bg-baseBg min-h-screen">
-      {fetching && <FetchingModal />}
+      <LoadingModal isOpen={fetching} message="로딩 중입니다" />
 
       {/* 1. 상단 타이틀 섹션 */}
       <div className="mb-8">

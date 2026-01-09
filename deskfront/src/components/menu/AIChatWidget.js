@@ -9,6 +9,7 @@ import { getMemberInfo } from "../../api/memberApi";
 import FilePreview from "../common/FilePreview";
 import AIFilePanel from "../file/AIFilePanel";
 import "./AIChatWidget.css";
+import LoadingModal from "../common/LoadingModal";
 
 const generateUUID = () => {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
@@ -61,6 +62,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
   const [targetDept, setTargetDept] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isSttLoading, setIsSttLoading] = useState(false);
@@ -308,19 +310,17 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     }
 
     setIsSttLoading(true);
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: "🎤 음성 파일을 분석하고 있습니다..." },
-    ]);
 
     try {
       const response = await sttApi.uploadAudio(file);
       const transcribedText = response.text || response.data?.text || "";
 
       if (transcribedText) {
-
-
+        // ✅ STT 완료 후 로딩 상태 전환
+        setIsSttLoading(false);
+        
         // ✅ [자동화 트리거] 변환된 텍스트로 요약 및 PDF 생성 시작
+        // 이 시점에서 setIsLoading(true)가 autoProcessSttResult 내부에서 호출됨
         await autoProcessSttResult(transcribedText);
       } else {
         setMessages((prev) => [
@@ -330,6 +330,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
             content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요.",
           },
         ]);
+        setIsSttLoading(false);
       }
     } catch (error) {
       console.error("STT Error:", error);
@@ -337,8 +338,8 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
         ...prev,
         { role: "assistant", content: "음성 변환 중 오류가 발생했습니다." },
       ]);
-    } finally {
       setIsSttLoading(false);
+    } finally {
       if (audioInputRef.current) {
         audioInputRef.current.value = "";
       }
@@ -478,7 +479,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       alert("필수 항목(제목, 내용, 담당자, 마감일)을 모두 확인해 주세요.");
       return;
     }
-    setIsLoading(true);
+    setIsSubmittingTicket(true);
     try {
       // 1. 티켓 저장
       const ticketResponse = await aiSecretaryApi.submitTicket(
@@ -519,7 +520,9 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     } catch (error) {
       console.error("전송 중 에러 발생:", error);
       alert("티켓 전송에 실패했습니다. 로그를 확인하세요.");
-      setIsLoading(false);
+      setIsSubmittingTicket(false);
+    } finally {
+      setIsSubmittingTicket(false);
     }
   };
 
@@ -858,9 +861,9 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
                       <button
                         className="submit-btn"
                         onClick={handleSubmitTicket}
-                        disabled={isLoading}
+                        disabled={isSubmittingTicket}
                       >
-                        {isLoading ? "전송 중..." : "🚀 업무 티켓 전송"}
+                        {isSubmittingTicket ? "전송 중..." : "🚀 업무 티켓 전송"}
                       </button>
                     )
                   )}
@@ -869,6 +872,20 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
             </div>
         </div>
       </div>
+
+      {/* 음성 파일 분석 중 로딩 모달 */}
+      <LoadingModal
+        isOpen={isSttLoading || isLoading || isSubmittingTicket}
+        message={
+          isSttLoading
+            ? "음성 파일을 분석하고 있습니다"
+            : isLoading
+            ? "회의록을 작성하고 있습니다"
+            : isSubmittingTicket
+            ? "처리 중입니다"
+            : "처리 중입니다"
+        }
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getList } from "../../api/boardApi";
 import useCustomMove from "../../hooks/useCustomMove";
-import FetchingModal from "../common/FetchingModal";
+import LoadingModal from "../common/LoadingModal";
 import PageComponent from "../common/PageComponent";
 import useCustomLogin from "../../hooks/useCustomLogin";
 
@@ -57,7 +57,7 @@ const ListComponent = () => {
 
   return (
     <div className="w-full space-y-8">
-      {fetching && <FetchingModal />}
+      <LoadingModal isOpen={fetching} message="로딩 중입니다" />
 
       {/* 1. 최상단 타이틀 섹션 */}
       <div>

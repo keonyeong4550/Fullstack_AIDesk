@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getOne, putOne, deleteOne } from "../../api/boardApi";
 import useCustomMove from "../../hooks/useCustomMove";
-import FetchingModal from "../common/FetchingModal";
+import LoadingModal from "../common/LoadingModal";
 
 const initState = {
   bno: 0,
@@ -81,7 +81,7 @@ const ModifyComponent = ({ bno }) => {
 
   return (
     <div className="ui-container py-8 space-y-8 bg-baseBg min-h-screen">
-      {fetching && <FetchingModal />}
+      <LoadingModal isOpen={fetching} message="로딩 중입니다" />
 
       {/* 1. 상단 타이틀 섹션 */}
       <div className="mb-8">
