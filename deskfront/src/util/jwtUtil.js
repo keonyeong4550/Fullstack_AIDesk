@@ -4,13 +4,29 @@ const API_SERVER_HOST = process.env.REACT_APP_API_SERVER_HOST;
 
 const jwtAxios = axios.create({ withCredentials: true });
 
+
+// [추가] 리프레시 진행 상태와 대기열 관리
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+// 새 토큰이 나오면 대기 중이던 요청들에게 나눠주고 재실행시키는 함수
+const onRefreshed = (accessToken) => {
+refreshSubscribers.forEach((callback) => callback(accessToken));
+refreshSubscribers = [];
+};
+
+// 리프레시 중일 때 들어온 요청들을 대기열에 담는 함수
+const addRefreshSubscriber = (callback) => {
+refreshSubscribers.push(callback);
+};
+
 // Access Token 만료 시 Refresh Token으로 새 JWT 발급
 // accessToken이 없어도 Refresh Token만으로 재발급 가능하도록 수정
 const refreshJWT = async (accessToken) => {
   const host = API_SERVER_HOST;
 
   // accessToken이 있으면 Authorization 헤더에 포함, 없으면 빈 헤더 (Refresh Token만 사용)
-  const headers = accessToken 
+  const headers = accessToken
     ? { Authorization: `Bearer ${accessToken}` }
     : {};
 
@@ -43,35 +59,17 @@ const beforeReq = async (config) => {
     console.log("Member NOT FOUND");
     return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
   }
-  
-  // 쿠키는 JSON 문자열로 저장되므로 파싱 필요
-  let memberInfo;
-  try {
-    memberInfo = typeof memberInfoRaw === 'string' ? JSON.parse(memberInfoRaw) : memberInfoRaw;
-  } catch (e) {
-    console.log("Failed to parse member cookie:", e);
-    return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
+
+  // getCookie가 이미 객체를 준다면 바로 구조분해 할당
+  const { accessToken } = memberInfoRaw;
+
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    // 토큰이 없어도 일단 보냅니다. (어차피 인터셉터에서 잡기 때문에)
+    console.log("No accessToken found in cookie, proceeding to let interceptor handle it.");
   }
-  
-  let { accessToken } = memberInfo || {};
-  
-  // accessToken이 없으면 Refresh Token으로 재발급 시도
-  if (!accessToken) {
-    console.log("accessToken is missing in member cookie, attempting refresh...");
-    try {
-      // Refresh Token만으로 Access Token 재발급 시도 (accessToken을 null로 전달)
-      // 단, 이 경우 요청 자체를 보류하고 나중에 response interceptor에서 처리하도록 함
-      // beforeReq는 동기적으로 실행되어야 하므로 여기서는 그냥 진행
-      // accessToken이 없으면 빈 Authorization 헤더로 보내고, 서버에서 ERROR_ACCESS_TOKEN을 반환하면
-      // responseFail에서 처리하도록 함
-      console.log("Access token missing, will try refresh in response interceptor");
-      // 여기서는 일단 요청을 진행시키되, 서버에서 에러가 나면 responseFail에서 처리
-    } catch (refreshErr) {
-      console.log("Failed to prepare refresh:", refreshErr);
-      return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
-    }
-  }
-  
+
 //  console.log("accessToken:", accessToken);
 
   // Authorization 헤더 설정
@@ -97,21 +95,32 @@ const beforeRes = async (res) => {
   if (data && data.error === "ERROR_ACCESS_TOKEN") {
     // 이전에 이미 재시도한 요청인지 확인 (무한 루프 방지)
     const originalRequest = res.config;
+
     if (originalRequest._retry) {
-      // 이미 재시도했는데도 실패했다면 더 이상 시도하지 않고 에러 리턴
       return Promise.reject({ response: { data: { error: "Login Failed" } } });
     }
 
-    // 재시도 플래그 설정
+   // 이미 다른 요청이 리프레시 중이라면 대기열(Promise)에서 기다림
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        addRefreshSubscriber((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(axios(originalRequest)); // 새 토큰으로 재실행
+        });
+      });
+    }
+
+    // 내가 첫 번째로 리프레시를 시작하는 요청일 때
+    isRefreshing = true;
     originalRequest._retry = true;
 
     try {
       const memberCookieValueRaw = getCookie("member");
-      
+
       if (!memberCookieValueRaw) {
         return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
       }
-      
+
       // 쿠키 파싱
       let memberCookieValue;
       try {
@@ -125,19 +134,28 @@ const beforeRes = async (res) => {
       }
 
       // 토큰 갱신 시도
+//      console.log("토큰 갱신 시도");
       const result = await refreshJWT(memberCookieValue.accessToken);
+      const newAccessToken = result.accessToken;
 
       // 쿠키 갱신
-      memberCookieValue.accessToken = result.accessToken;
+//      console.log("쿠키 갱신");
+      memberCookieValue.accessToken = newAccessToken;
       setCookie("member", JSON.stringify(memberCookieValue), 1);
 
+      // 리프레시 완료 신호를 보내고 대기자들 출발시킴
+      isRefreshing = false;
+      onRefreshed(newAccessToken);
+
       // 갱신된 토큰으로 원래 요청의 헤더 수정
-      originalRequest.headers.Authorization = `Bearer ${result.accessToken}`;
+//      console.log("갱신된 토큰으로 원래 요청의 헤더 수정");
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
       // 원래 요청 재실행
+//      console.log("원래 요청 재실행");
       return await axios(originalRequest);
     } catch (err) {
-      // 토큰 갱신 실패 시 (Refresh Token도 만료됨 등) -> 로그인 페이지로 가도록 유도하거나 에러 전파
+      isRefreshing = false;
       console.log("Refresh Token Expired or Error");
       return Promise.reject(err);
     }
@@ -154,32 +172,43 @@ const responseFail = async (err) => {
     const errorData = err.response.data;
     const errorType = errorData.error;
     const originalRequest = err.config;
-    
+
     // Refresh Token 관련 에러는 로그인 필요로 처리
-    if (errorType === "UNKNOWN_REFRESH" || errorType === "NULL_REFRESH" || 
+    if (errorType === "UNKNOWN_REFRESH" || errorType === "NULL_REFRESH" ||
         errorType === "REFRESH_REPLAY_DETECTED" || errorType === "REFRESH_TAMPERED" ||
         errorType === "REFRESH_DEVICE_MISMATCH" || errorType === "REFRESH_IP_MISMATCH" ||
         errorType === "REFRESH_BINDING_MISMATCH" || errorType === "INVALID_REFRESH_CLAIMS") {
       return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
     }
-    
+
     // ERROR_ACCESS_TOKEN, Expired, MalFormed 등의 JWT 에러 처리
     if (errorType === "ERROR_ACCESS_TOKEN" || errorType === "Expired" || errorType === "MalFormed" || errorType === "Invalid") {
       // 무한 루프 방지
       if (originalRequest && originalRequest._retry) {
         return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
       }
-      
+
       if (originalRequest) {
+        // 동시성 제어: 이미 리프레시 중이면 대기
+        if (isRefreshing) {
+          return new Promise((resolve) => {
+            addRefreshSubscriber((token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(axios(originalRequest));
+            });
+          });
+        }
+
+        isRefreshing = true;
         originalRequest._retry = true;
-        
+
         try {
           const memberCookieValueRaw = getCookie("member");
-          
+
           if (!memberCookieValueRaw) {
             return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
           }
-          
+
           // 쿠키 파싱
           let memberCookieValue;
           try {
@@ -187,42 +216,44 @@ const responseFail = async (err) => {
           } catch (e) {
             return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
           }
-          
-          // accessToken이 없어도 Refresh Token만으로 재발급 시도
-          // accessToken이 없거나 만료된 경우 null을 전달하여 Refresh Token만으로 재발급
+
+          // 토큰 갱신 시도
           const currentAccessToken = memberCookieValue?.accessToken || null;
           console.log("Attempting token refresh, current accessToken:", currentAccessToken ? "exists" : "missing");
-          
-          // 토큰 갱신 시도 - accessToken이 만료되었거나 없으면 null 전달 (Refresh Token만 사용)
-          const result = await refreshJWT(null); // Refresh Token으로만 재발급 시도
-          
+
+          const result = await refreshJWT(null);
+          const newAccessToken = result.accessToken;
+
           console.log("Token refresh result:", result);
-          
-          if (result && result.accessToken) {
+
+          if (newAccessToken) {
             // 쿠키 갱신
-            if (!memberCookieValue) {
-              memberCookieValue = {};
-            }
-            memberCookieValue.accessToken = result.accessToken;
+            if (!memberCookieValue) { memberCookieValue = {}; }
+            memberCookieValue.accessToken = newAccessToken;
             setCookie("member", JSON.stringify(memberCookieValue), 1);
-            
+
+            // 대기열 해제
+            isRefreshing = false;
+            onRefreshed(newAccessToken);
+
             // 갱신된 토큰으로 원래 요청의 헤더 수정
-            originalRequest.headers.Authorization = `Bearer ${result.accessToken}`;
-            
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
             // 원래 요청 재실행
             return await axios(originalRequest);
           } else {
+            isRefreshing = false;
             return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
           }
         } catch (refreshErr) {
+          isRefreshing = false;
           console.error("Refresh Token 갱신 실패:", refreshErr.response?.data || refreshErr.message);
-          // Refresh Token 갱신 실패 - 로그인 필요
           return Promise.reject({ response: { data: { error: "REQUIRE_LOGIN" } } });
         }
       }
     }
   }
-  
+
   return Promise.reject(err);
 };
 

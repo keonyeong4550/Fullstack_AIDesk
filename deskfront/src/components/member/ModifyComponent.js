@@ -268,7 +268,7 @@ const ModifyComponent = () => {
       </form>
 
       {/* 얼굴 인식 로딩 모달 */}
-      <LoadingModal isOpen={isRecognizing} />
+      <LoadingModal isOpen={isRecognizing} message={"얼굴 인식 중 입니다"}/>
     </div>
   );
 };

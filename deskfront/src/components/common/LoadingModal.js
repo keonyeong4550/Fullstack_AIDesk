@@ -40,7 +40,7 @@ const LoadingModal = ({ isOpen, message = "처리 중입니다" }) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         /* 역방향 회전 애니메이션 */
         @keyframes spin-reverse {
           from { transform: rotate(360deg); }
