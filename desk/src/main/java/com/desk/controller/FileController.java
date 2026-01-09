@@ -23,8 +23,8 @@ public class FileController {
     // 파일함 목록 조회 (전체/보낸/받은 탭 통합)
     @GetMapping("/list")
     public ResponseEntity<PageResponseDTO<TicketFileDTO>> getFileBox(
-            @RequestParam String email,
-            @RequestParam String type, // ALL, SENT, RECEIVED
+            @RequestParam("email") String email,
+            @RequestParam("type") String type, // ALL, SENT, RECEIVED
             @ModelAttribute TicketFilterDTO filter, // 검색어 포함
             @ModelAttribute PageRequestDTO pageRequestDTO
     ) {
@@ -33,19 +33,19 @@ public class FileController {
 
     // 이미지 보기 (이미지 태그의 src에서 호출)
     @GetMapping("/view/{fileName}")
-    public ResponseEntity<Resource> viewFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> viewFile(@PathVariable("fileName") String fileName) {
         return fileUtil.getFile(fileName, null);
     }
 
     // 파일 다운로드 (알림창 확인 후 호출)
     @GetMapping("/download/{fileName}")
     public ResponseEntity<Resource> downloadFile(
-            @PathVariable String fileName,
-            @RequestParam String originalName) {
+            @PathVariable("fileName") String fileName,
+            @RequestParam("originalName") String originalName) {
         return fileUtil.getFile(fileName, originalName);
     }
     @DeleteMapping("/{uuid}")
-    public ResponseEntity<Void> deleteFile(@PathVariable String uuid) {
+    public ResponseEntity<Void> deleteFile(@PathVariable("uuid") String uuid) {
         log.info("[File] 삭제 요청 | uuid={}", uuid);
         fileService.deleteFile(uuid);
         return ResponseEntity.noContent().build();

@@ -8,7 +8,6 @@ import com.desk.dto.TicketReceivedListDTO;
 import com.desk.service.PersonalTicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,7 +22,7 @@ public class PersonalTicketController {
     // 받은함 페이지 조회 --- receiver 기준 + 필터 + 페이징
     @GetMapping
     public ResponseEntity<PageResponseDTO<TicketReceivedListDTO>> listInbox(
-            @RequestParam String receiver,
+            @RequestParam("receiver") String receiver,
             @ModelAttribute TicketFilterDTO filter,
             @ModelAttribute PageRequestDTO pageRequestDTO
     ) {
@@ -38,9 +37,9 @@ public class PersonalTicketController {
     // 받은 티켓 단일 조회 (pno 기준) --- receiver 소유 검증 + markAsRead 옵션
     @GetMapping("/by-pno/{pno}")
     public ResponseEntity<TicketReceivedListDTO> readInboxByPno(
-            @PathVariable Long pno,
-            @RequestParam String receiver,
-            @RequestParam(defaultValue = "true") boolean markAsRead
+            @PathVariable("pno") Long pno,
+            @RequestParam("receiver") String receiver,
+            @RequestParam(value = "markAsRead", defaultValue = "true") boolean markAsRead
     ) {
         log.info("[Inbox] 단건 조회(pno) 요청 | pno={} | 수신자={} | 읽음처리={}",
                 pno, receiver, markAsRead);
@@ -55,9 +54,9 @@ public class PersonalTicketController {
     // 받은 티켓 단일 조회 (tno 기준) --- receiver+tno로 대상 TicketPersonal 찾은 뒤 markAsRead 적용
     @GetMapping("/by-tno/{tno}")
     public ResponseEntity<TicketReceivedListDTO> readInboxByTno(
-            @PathVariable Long tno,
-            @RequestParam String receiver,
-            @RequestParam(defaultValue = "true") boolean markAsRead
+            @PathVariable("tno") Long tno,
+            @RequestParam("receiver") String receiver,
+            @RequestParam(value = "markAsRead", defaultValue = "true") boolean markAsRead
     ) {
         log.info("[Inbox] 단건 조회(tno) 요청 | tno={} | 수신자={} | 읽음처리={}",
                 tno, receiver, markAsRead);
@@ -72,9 +71,9 @@ public class PersonalTicketController {
     // 진행상태 변경 --- receiver가 소유한 pno의 state 변경
     @PatchMapping("/{pno}/state")
     public ResponseEntity<TicketReceivedListDTO> changeState(
-            @PathVariable Long pno,
-            @RequestParam String receiver,
-            @RequestParam TicketState state
+            @PathVariable("pno") Long pno,
+            @RequestParam("receiver") String receiver,
+            @RequestParam("state") TicketState state
     ) {
         log.info("[Inbox] 상태 변경 요청 | pno={} | 수신자={} | state={}",
                 pno, receiver, state);

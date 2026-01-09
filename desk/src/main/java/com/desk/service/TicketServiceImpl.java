@@ -1,6 +1,7 @@
 package com.desk.service;
 
 import com.desk.domain.Member;
+import com.desk.domain.Department;
 import com.desk.domain.Ticket;
 import com.desk.domain.TicketFile;
 import com.desk.domain.TicketPersonal;
@@ -18,6 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Log4j2
@@ -57,8 +60,32 @@ public class TicketServiceImpl implements TicketService {
             // 수신자 추가
             List<String> receiverEmails = req.getReceivers();
             if (req.getReceivers() != null) {
-                for (String email : req.getReceivers()) {
-                    if(email == null || email.isBlank()) continue;
+                // TEAM_<DEPT> 형태(부서 전원) 지원: 저장 시점에 실제 이메일 목록으로 확장
+                Set<String> finalReceiverEmails = new LinkedHashSet<>();
+
+                for (String raw : req.getReceivers()) {
+                    if (raw == null || raw.isBlank()) continue;
+
+                    String token = raw.trim();
+                    if (token.startsWith("TEAM_")) {
+                        String deptName = token.substring("TEAM_".length()).trim();
+                        if (deptName.isEmpty()) continue;
+
+                        Department dept = Department.valueOf(deptName);
+                        List<Member> members = memberRepository.findAllActiveByDepartment(dept);
+                        for (Member m : members) {
+                            if (m == null || m.getEmail() == null) continue;
+                            // 작성자에게는 굳이 보내지 않도록 제외
+                            if (m.getEmail().equals(writer)) continue;
+                            finalReceiverEmails.add(m.getEmail());
+                        }
+                    } else {
+                        finalReceiverEmails.add(token);
+                    }
+                }
+
+                for (String email : finalReceiverEmails) {
+                    if (email == null || email.isBlank()) continue;
                     Member receiver = memberRepository.findById(email)
                             .orElseThrow(() -> new IllegalArgumentException("수신자 없음: " + email));
                     ticket.addPersonal(TicketPersonal.builder().receiver(receiver).build());

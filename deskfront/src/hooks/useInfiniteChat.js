@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const useInfiniteChat = (messages = [], pageSize = 30) => {
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const prevMessagesLengthRef = useRef(messages.length);
+  const prevLastMessageIdRef = useRef(messages.length > 0 ? messages[messages.length - 1]?.id : null);
   const containerRefRef = useRef(null);
 
   // visibleMessages: 최신 visibleCount개만 표시
@@ -53,6 +54,7 @@ const useInfiniteChat = (messages = [], pageSize = 30) => {
   const reset = useCallback(() => {
     setVisibleCount(pageSize);
     prevMessagesLengthRef.current = 0;
+    prevLastMessageIdRef.current = null;
   }, [pageSize]);
 
   // 초기 로드 시 맨 아래로 스크롤
@@ -69,19 +71,30 @@ const useInfiniteChat = (messages = [], pageSize = 30) => {
   useEffect(() => {
     const prevLength = prevMessagesLengthRef.current;
     const currentLength = messages.length;
+    const currentLastMessageId = currentLength > 0 ? messages[currentLength - 1]?.id : null;
+    const prevLastMessageId = prevLastMessageIdRef.current;
 
-    // 새 메시지가 추가된 경우 (맨 뒤에 추가)
+    // 새 메시지가 추가된 경우
     if (currentLength > prevLength && prevLength > 0) {
+      // 메시지가 앞에 추가되었는지 뒤에 추가되었는지 확인
+      // 마지막 메시지 ID가 변경되지 않았으면 앞에 추가된 것 (이전 메시지 로드)
+      // 마지막 메시지 ID가 변경되었으면 뒤에 추가된 것 (새 메시지)
+      const isPrepend = currentLastMessageId === prevLastMessageId && currentLastMessageId !== null;
+
       // visibleCount도 증가시켜 새 메시지가 보이게 함
       if (visibleCount < currentLength) {
         setVisibleCount(Math.min(currentLength, visibleCount + (currentLength - prevLength)));
       }
-      // 맨 아래로 스크롤
-      setTimeout(() => scrollToBottom(), 50);
+      
+      // 메시지가 뒤에 추가된 경우에만 맨 아래로 스크롤 (앞에 추가된 경우는 스크롤 유지)
+      if (!isPrepend) {
+        setTimeout(() => scrollToBottom(), 50);
+      }
     }
 
     prevMessagesLengthRef.current = currentLength;
-  }, [messages.length, visibleCount, scrollToBottom]);
+    prevLastMessageIdRef.current = currentLastMessageId;
+  }, [messages.length, visibleCount, scrollToBottom, messages]);
 
   // containerRef 설정 함수
   const setContainerRef = useCallback((ref) => {

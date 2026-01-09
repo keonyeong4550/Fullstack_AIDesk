@@ -1,5 +1,6 @@
 package com.desk.repository;
 
+import com.desk.domain.Department;
 import com.desk.domain.Member;
 
 import java.util.List;
@@ -21,8 +22,16 @@ public interface MemberRepository extends JpaRepository<Member, String>, MemberS
 @Query("select m from Member m where m.nickname = :nickname and m.isDeleted = false and m.isApproved = true")
     Optional<Member> findByNickname(@Param("nickname") String nickname);
 
+    @Query("select m.nickname from Member m " +
+            "where m.nickname is not null and m.nickname <> '' " +
+            "and m.isDeleted = false and m.isApproved = true")
+    List<String> findAllActiveNicknames();
+
+    @Query("select m from Member m where m.department = :dept and m.isDeleted = false and m.isApproved = true")
+    List<Member> findAllActiveByDepartment(@Param("dept") Department dept);
+
     @Query("select m from Member m where m.nickname LIKE %:nickname% and m.isDeleted = false and m.isApproved = true")
     List<Member> findByNicknameContaining(@Param("nickname") String nickname);
 
-    
+
 }
