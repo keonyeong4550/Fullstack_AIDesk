@@ -113,10 +113,6 @@ public class OllamaServiceImpl implements OllamaService {
                         "제목: %s\n목적: %s\n요구사항: %s\n본문 및 파일내용:\n%s",
                 title, purpose, requirement, finalContent
         );
-
-        // ... (이하 requestBody 생성 및 RestTemplate 호출 로직은 기존과 동일) ...
-        // 헤더에 x-api-key 넣는 것 잊지 마세요!
-
         return callOllamaApi(url, prompt); // (중복 코드 줄이기 위해 아래 메서드로 분리함)
     }
 
@@ -186,30 +182,15 @@ public class OllamaServiceImpl implements OllamaService {
                 for (String attendee : result.getAttendees()) {
                     if (attendee == null || attendee.trim().isEmpty()) continue;
 
-                    String trimmedAttendee = attendee.trim();
-                    Optional<Member> foundMember = Optional.empty();
-
-                    // 1순위: 정확한 매칭 시도
-                    foundMember = memberRepository.findByNickname(trimmedAttendee);
-
-                    // 2순위: 정확한 매칭 실패 시 부분 매칭 시도 (2글자 이상일 때만)
-                    if (foundMember.isEmpty() && trimmedAttendee.length() >= 2) {
-                        List<Member> members = memberRepository.findByNicknameContaining(trimmedAttendee);
-                        if (members.size() == 1) { // 1명만 매칭될 때만 사용
-                            foundMember = Optional.of(members.get(0));
-                            log.info("부분 매칭 성공: {} -> {}", trimmedAttendee, members.get(0).getNickname());
-                        } else if (members.size() > 1) {
-                            // 여러 명 매칭되면 로그만 남기고 제외 (모호함)
-                            log.warn("부분 매칭 결과가 여러 명: {} -> {}명", trimmedAttendee, members.size());
-                        }
-                    }
-
+                    // nickname으로 DB 조회
+                    Optional<Member> foundMember = memberRepository.findByNickname(attendee.trim());
                     if (foundMember.isPresent()) {
                         String email = foundMember.get().getEmail();
                         emailList.add(email);
-                        log.info("담당자 변환: {} -> {} ({})", trimmedAttendee, email, foundMember.get().getNickname());
+                        log.info("담당자 변환: {} -> {}", attendee, email);
                     } else {
-                        log.warn("담당자를 찾을 수 없음: {}", trimmedAttendee);
+                        // 찾지 못한 경우 로그만 남기고 제외
+                        log.warn("담당자를 찾을 수 없음: {}", attendee);
                     }
                 }
                 result.setAttendees(emailList);
@@ -276,22 +257,8 @@ public class OllamaServiceImpl implements OllamaService {
             table.addCell(createValueCell(deadline, 1, 1));
 
             // [3행] 참석자 (큰 박스, 4칸 합치기)
-            // email을 nickname으로 변환하여 표시
-            List<String> attendeeNicknames = new ArrayList<>();
-            if (summary.getAttendees() != null && !summary.getAttendees().isEmpty()) {
-                for (String email : summary.getAttendees()) {
-                    if (email == null || email.trim().isEmpty()) continue;
-                    Optional<Member> member = memberRepository.findById(email.trim());
-                    if (member.isPresent() && member.get().getNickname() != null) {
-                        attendeeNicknames.add(member.get().getNickname());
-                    } else {
-                        // nickname을 찾을 수 없으면 email 그대로 사용
-                        attendeeNicknames.add(email);
-                    }
-                }
-            }
-            String attendees = attendeeNicknames.isEmpty() ? "" : String.join(", ", attendeeNicknames);
-            table.addCell(createBigCell("담당자: " + attendees, 60)); // 높이 60
+            String attendees = (summary.getAttendees() != null) ? summary.getAttendees().toString() : "";
+            table.addCell(createBigCell("참석자:\n" + attendees, 60)); // 높이 60
 
             // [4행] 회의 개요 및 목적 (큰 박스)
             String overview = (summary.getOverview() != null) ? summary.getOverview() : "";
@@ -316,11 +283,6 @@ public class OllamaServiceImpl implements OllamaService {
             return null;
         }
     }
-
-// -------------------------------------------------------
-// 👇 아래 헬퍼 메서드들을 클래스 내부에(generatePdf 밖, 클래스 안) 추가하세요.
-//    표 만들 때 코드를 깔끔하게 하기 위한 도구들입니다.
-// -------------------------------------------------------
 
     // 1. 회색 배경의 헤더 칸 만들기 (선택 사항: 심플하게 흰색으로 하려면 setBackgroundColor 삭제)
     private Cell createHeaderCell(String text) {

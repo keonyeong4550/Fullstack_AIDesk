@@ -62,10 +62,10 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
   const [targetDept, setTargetDept] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isSttLoading, setIsSttLoading] = useState(false);
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   // 여러 명 담당자 정보를 위한 배열
   const [assigneesInfo, setAssigneesInfo] = useState([]);
 
@@ -88,7 +88,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     };
 
     document.addEventListener('keydown', handleKeyDown);
-
+    
     // 모달이 열릴 때 약간의 지연 후 애니메이션 적용 (마운트 시에만 실행)
     setShouldAnimate(false);
     requestAnimationFrame(() => {
@@ -96,7 +96,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
         setShouldAnimate(true);
       });
     });
-
+    
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
@@ -199,15 +199,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       .filter(Boolean)
       .join("\n\n");
     const purpose = compressText(s?.overview || "", 120);
-    // #region agent log
-    const detailsOriginal = s?.details || "";
-    const detailsLengthBefore = detailsOriginal.length;
-    // #endregion
     const requirement = compressList(s?.details || "", 5, 520);
-    // #region agent log
-    const requirementLength = requirement.length;
-    fetch('http://127.0.0.1:7242/ingest/620b754d-d694-47b8-92aa-a869cb5fe6c6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AIChatWidget.js:157',message:'requirement after compression',data:{detailsLengthBefore,requirementLength,detailsPreview:detailsOriginal.substring(0,100)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2,H3'})}).catch(()=>{});
-    // #endregion
 
     // 참석자 전체를 receivers로 사용 (여러 명 지원)
     let receivers = [];
@@ -223,6 +215,49 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
     return { title, content, purpose, requirement, receivers };
   };
 
+  const cleanSttText = (text) => {
+    if (!text) return "";
+
+    let cleaned = text;
+
+    // 1. 괄호로 묶인 소리 제거 (예: (침묵), (잡음), (웃음))
+    cleaned = cleaned.replace(/\([^)]*\)/g, "");
+
+    // 2. 한국어 대화에서 흔한 불용어/감탄사 리스트 (상황에 따라 추가 가능)
+    // 주의: '저', '그', '이제' 같은 단어는 문맥에 필요할 수 있어, 뒤에 쉼표나 공백이 올 때만 제거하거나
+    // 명백한 감탄사(음, 어, 아) 위주로 제거합니다.
+    const stopWords = [
+      "음",
+      "어",
+      "아",
+      "휴",
+      "아이고",
+      "막",
+      "참",
+      "저기",
+      "뭔가",
+      "그..",
+      "어..",
+      "음..",
+      "그러니까..",
+      "약간",
+    ];
+
+    // 3. 불용어 제거 (단어 앞뒤 공백 고려)
+    stopWords.forEach((word) => {
+      // 문장 시작이나 공백 뒤에 오는 불용어 제거
+      const regex = new RegExp(`(^|\\s)${word}(?=\\s|$)`, "g");
+      cleaned = cleaned.replace(regex, " ");
+    });
+
+    // 4. 반복되는 공백을 하나로 줄임
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+
+    // 5. 문장 끝의 불필요한 공백 제거
+    cleaned = cleaned.replace(/ \./g, ".");
+
+    return cleaned;
+  };
   // =====================================================================
   // ✅ [핵심 기능] STT 결과로 AI 요약 + PDF 생성 + 파일 첨부 자동화 함수
   // =====================================================================
@@ -311,35 +346,39 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
 
     setIsSttLoading(true);
 
-    try {
-      const response = await sttApi.uploadAudio(file);
-      const transcribedText = response.text || response.data?.text || "";
+try {
+  const response = await sttApi.uploadAudio(file);
 
-      if (transcribedText) {
-        // ✅ STT 완료 후 로딩 상태 전환
-        setIsSttLoading(false);
-        
-        // ✅ [자동화 트리거] 변환된 텍스트로 요약 및 PDF 생성 시작
-        // 이 시점에서 setIsLoading(true)가 autoProcessSttResult 내부에서 호출됨
-        await autoProcessSttResult(transcribedText);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요.",
-          },
-        ]);
-        setIsSttLoading(false);
-      }
-    } catch (error) {
-      console.error("STT Error:", error);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "음성 변환 중 오류가 발생했습니다." },
-      ]);
-      setIsSttLoading(false);
-    } finally {
+  const rawText = response?.text || response?.data?.text || "";
+
+  if (rawText) {
+    // STT 완료 후 로딩 상태 전환
+    setIsSttLoading(false);
+
+    const cleanedText = cleanSttText(rawText);
+
+    console.log("원본 STT:", rawText);
+    console.log("정제된 STT:", cleanedText);
+
+    await autoProcessSttResult(cleanedText);
+  } else {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "음성을 텍스트로 변환하지 못했습니다. 다시 시도해주세요.",
+      },
+    ]);
+    setIsSttLoading(false);
+  }
+} catch (error) {
+  console.error("STT Error:", error);
+  setMessages((prev) => [
+    ...prev,
+    { role: "assistant", content: "음성 변환 중 오류가 발생했습니다." },
+  ]);
+  setIsSttLoading(false);
+}  finally {
       if (audioInputRef.current) {
         audioInputRef.current.value = "";
       }
@@ -480,6 +519,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       return;
     }
     setIsSubmittingTicket(true);
+    setIsLoading(true);
     try {
       // 1. 티켓 저장
       const ticketResponse = await aiSecretaryApi.submitTicket(
@@ -514,6 +554,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       }
 
       setSubmitSuccess(true);
+      setIsSubmittingTicket(false);
       setTimeout(() => {
         onClose();
       }, 2000);
@@ -521,14 +562,15 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       console.error("전송 중 에러 발생:", error);
       alert("티켓 전송에 실패했습니다. 로그를 확인하세요.");
       setIsSubmittingTicket(false);
-    } finally {
-      setIsSubmittingTicket(false);
+      setIsLoading(false);
     }
   };
 
   const handleReset = () => {
     if (window.confirm("초기화하시겠습니까?")) {
       setMessages([{ role: "assistant", content: "대화가 초기화되었습니다." }]);
+      setMode(null);
+      setAiFileResults([]);
       setCurrentTicket({
         title: "",
         content: "",
@@ -542,21 +584,22 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
       setTargetDept(null);
       setIsCompleted(false);
       setSubmitSuccess(false);
+      setIsSubmittingTicket(false);
       //   setAiSummary("");
     }
   };
 
 
   return (
-    <div
+    <div 
       ref={overlayRef}
       className="ai-widget-overlay"
-      style={{
+      style={{ 
         opacity: shouldAnimate ? 1 : 0,
         animation: shouldAnimate ? 'fadeInOverlay 0.2s ease-out' : 'none'
       }}
     >
-      <div
+      <div 
         ref={containerRef}
         className="ai-widget-container"
         style={{
@@ -736,7 +779,7 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
                     fontSize: "13px",
                   }}
                 >
-                  🔄
+                  초기화
                 </button>
               </div>
             </div>
@@ -861,9 +904,9 @@ const AIChatWidget = ({ onClose, chatRoomId, currentUserId }) => {
                       <button
                         className="submit-btn"
                         onClick={handleSubmitTicket}
-                        disabled={isSubmittingTicket}
+                        disabled={isLoading}
                       >
-                        {isSubmittingTicket ? "전송 중..." : "🚀 업무 티켓 전송"}
+                        {isLoading ? "전송 중..." : "🚀 업무 티켓 전송"}
                       </button>
                     )
                   )}
