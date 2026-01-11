@@ -125,10 +125,19 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
+        // (C) 티켓 트리거 키워드 체크 (AI 처리 전)
+        // ============================================================
+        boolean ticketTriggerFromKeywords = checkTicketTriggerKeywords(originalContent);
+        if (ticketTriggerFromKeywords) {
+            log.info("[Chat] 티켓 트리거 키워드 감지 | roomId={} | senderId={} | content={}", 
+                    roomId, senderId, originalContent);
+        }
+
+        // ============================================================
         // AI/TEST 처리 결과
         // ============================================================
         String finalContent = filteredContent;
-        boolean ticketTrigger = false;
+        boolean ticketTrigger = ticketTriggerFromKeywords; // 키워드 감지 시 먼저 설정
 
         if (effectiveAiEnabled) {
             // ===========================
@@ -153,7 +162,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         true
                 );
                 finalContent = aiResult.getProcessedContent();
-                ticketTrigger = aiResult.isTicketTrigger();
+                // 키워드나 AI 결과 중 하나라도 true면 트리거
+                ticketTrigger = ticketTrigger || aiResult.isTicketTrigger();
             }
         }
 
@@ -281,10 +291,19 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
+        // (C) 티켓 트리거 키워드 체크 (AI 처리 전)
+        // ============================================================
+        boolean ticketTriggerFromKeywords = checkTicketTriggerKeywords(originalContent);
+        if (ticketTriggerFromKeywords) {
+            log.info("[Chat] 티켓 트리거 키워드 감지 | roomId={} | senderId={} | content={}", 
+                    roomId, senderId, originalContent);
+        }
+
+        // ============================================================
         // AI/TEST 처리 결과
         // ============================================================
         String finalContent = filteredContent;
-        boolean ticketTrigger = false;
+        boolean ticketTrigger = ticketTriggerFromKeywords; // 키워드 감지 시 먼저 설정
 
         if (effectiveAiEnabled) {
             // ===========================
@@ -308,7 +327,8 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                         true
                 );
                 finalContent = aiResult.getProcessedContent();
-                ticketTrigger = aiResult.isTicketTrigger();
+                // 키워드나 AI 결과 중 하나라도 true면 트리거
+                ticketTrigger = ticketTrigger || aiResult.isTicketTrigger();
             }
         }
 
@@ -585,6 +605,41 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 .profanityDetected(false)
                 .files(files)
                 .build();
+    }
+
+    /**
+     * 티켓 트리거 키워드 체크
+     * 메시지에 특정 키워드가 포함되어 있으면 티켓 생성 모달 트리거
+     */
+    private boolean checkTicketTriggerKeywords(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return false;
+        }
+        
+        String lowerContent = content.toLowerCase();
+        
+        // 티켓 트리거 키워드 목록
+        String[] keywords = {
+            "티켓",
+            "업무화",
+            "업무 티켓",
+            "티켓 생성",
+            "티켓 작성",
+            "티켓 만들어",
+            "업무 티켓 만들어",
+            "티켓 만들어줘",
+            "업무 티켓 작성",
+            "티켓 작성해",
+            "티켓 작성해줘"
+        };
+        
+        for (String keyword : keywords) {
+            if (lowerContent.contains(keyword.toLowerCase())) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     private TicketFileDTO chatFileToTicketFileDTO(ChatFile f) {
