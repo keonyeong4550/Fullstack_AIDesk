@@ -1,0 +1,160 @@
+
+# READ.MD 초벌입니다...
+----
+
+## 팀원 
+
+### 각 팀원은 기능별로 백엔드와 프론트엔드 하이브리드로 개발
+
+|                    (팀장) [김민식](https://github.com/paesir-i-am)                    |                     [한정연](https://github.com/Namsu-park)                     |                      [박태오](https://github.com/SuLim0813)                     |                      [오인준](https://github.com/weare2415)                     |                      [박건영](https://github.com/weare2415)                     |
+|:-------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------:|
+| [<img src="https://avatars.githubusercontent.com/u/183713556?v=4" width="160" />](https://github.com/paesir-i-am) | [<img src="https://avatars.githubusercontent.com/u/184890981?v=4" width="160" />](https://github.com/Namsu-park) | [<img src="https://avatars.githubusercontent.com/u/183588723?v=4" width="160" />](https://github.com/SuLim0813) | [<img src="https://avatars.githubusercontent.com/u/177728506?v=4" width="160" />](https://github.com/weare2415) | [<img src="https://avatars.githubusercontent.com/u/177728506?v=4" width="160" />](https://github.com/weare2415) |
+
+#### 김민식 :
+로그인 및 회원가입 : JWT를 이용한 보안처리 및 백엔드 스프링 시큐리티 사용하여 구현
+파일업로드
+Redis
+
+
+
+#### 한정연 : 
+AI 채팅, UI/UX
+
+
+#### 박태오 :
+자연어로 티켓 구성
+
+
+#### 오인준 :
+댓글, 대댓글, STT APP
+
+#### 박건영 :
+음성파일로 회의록 PDF 자동작성
+불용어 처리
+
+
+---
+
+## 🛠️ 주요 기능
+  1. AI 채팅
+  2. 음성 파일로 회의록 PDF 자동 작성
+  3. Kakao Social Login
+  4. 댓글, 대댓글
+  5. 
+  6. 
+  7. 
+  8. 
+  9. 
+
+###  📚사용 스택
+<div>
+<img src="https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=React&logoColor=white">
+<img src="https://img.shields.io/badge/Spring Boot-6DB33F?style=for-the-badge&logo=Spring Boot&logoColor=white">
+<img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=MariaDB&logoColor=white">
+<img src="https://img.shields.io/badge/Amazon AWS-232F3E?style=for-the-badge&logo=Amazon AWS&logoColor=white">
+<img src="https://img.shields.io/badge/Redux-764ABC?style=for-the-badge&logo=Redux&logoColor=white">
+<br/><img src="https://img.shields.io/badge/Sass-CC6699?style=for-the-badge&logo=Sass&logoColor=white">
+<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=Python&logoColor=white">
+<img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=Node.js&logoColor=white">
+<img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=HTML5&logoColor=white">
+<br/><img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=CSS3&logoColor=white">
+<img src="https://img.shields.io/badge/Javascript-F7DF1E?style=for-the-badge&logo=Javascript&logoColor=white">
+<img src="https://img.shields.io/badge/Amazon S3-569A31?style=for-the-badge&logo=Amazon S3&logoColor=white">
+<img src="https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=Prettier&logoColor=white"><br/><br/> </div>
+
+
+💻  OS : windows
+
+🖥️ Front-end : React
+
+🗄️ back-end : Spring Boot
+
+💾 Database : MariaDB
+
+📡 Server : AWS
+
+----
+
+# 기능 소개
+
+## 시연영상 및 팀 프로젝트 PDF
+
+
+## 🎥 [유튜브 시연영상-첨부예정](첨부예정)
+
+## 📋 [PDF 보기-첨부예정](https://nbviewer.org/github/paesir-i-am/Wanderlust/blob/main/Wanderlust_%E1%84%89%E1%85%AE%E1%84%8C%E1%85%A5%E1%86%BC.pdf)
+
+
+## 계층구조
+
+[첨부예정]
+
+
+## 구현 기능
+
+### 로그인 및 회원가입
+
+
+
+[첨부예정]
+
+### [플로우차트 및 주요 코드 확인][첨부예정]
+
+### AI 채팅, UI/UX
+
+
+### 자연어로 티켓 구성
+[첨부예정]
+
+### 댓글, 대댓글, STT APP
+[첨부예정]
+
+### 음성파일로 회의록 PDF 자동작성
+[첨부예정]
+
+### [플로우 및 주요 코드][첨부예정]
+
+---
+
+### 로그인
+
+로그인
+
+[첨부예정]
+
+### 채팅
+
+채팅
+
+[첨부예정]
+
+### [이미지 검색 주요 코드][첨부예정]
+
+---
+
+### 파이썬 채팅
+
+파이썬 채팅
+
+<img src="https://github.com/user-attachments/assets/e345a2f2-792c-448d-a50e-b8a7a8d9d56b" width="512" /><br/>
+
+### [로그인 플로우 및 주요 코드][첨부예정]
+
+----
+
+### 댓글 대댓글
+
+댓글 대댓글
+
+[첨부예정-예시]<img src="https://github.com/user-attachments/assets/4cdb0dde-bae5-44a3-9141-24014786cf9d" width="512" /><br/>
+
+---
+
+### 불용어
+
+불용어
+
+[첨부예정]
+
+
+---
