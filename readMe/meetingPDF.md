@@ -4,3 +4,4 @@
 ![Image](https://github.com/user-attachments/assets/e3c158f4-9eaa-4338-86f4-75d36d07090e)
 
 ## 주요 코드
+<img width="809" height="534" alt="Image" src="https://github.com/user-attachments/assets/95ccc327-4a16-4abf-818f-d9a2ecc04a76" />
