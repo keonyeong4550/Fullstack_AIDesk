@@ -11,33 +11,33 @@
 | [<img src="https://avatars.githubusercontent.com/minsik321" width="160" />](https://github.com/minsik321) | [<img src="https://avatars.githubusercontent.com/DOT-SOY" width="160" />](https://github.com/DOT-SOY) | [<img src="https://avatars.githubusercontent.com/teomichaelpark-glitch" width="160" />](https://github.com/teomichaelpark-glitch) | [<img src="https://avatars.githubusercontent.com/01nJun" width="160" />](https://github.com/01nJun) | [<img src="https://avatars.githubusercontent.com/keonyeong4550" width="160" />](https://github.com/keonyeong4550) |
 
 #### 김민식 :
- 1. 회원 가입
- 2. 로그인, 로그아웃
- 3. 소셜 로그인 & 회원가입
- 4. 얼굴등록 및 로그인 (임베딩)
- 5. 관리자 페이지
- 6. 메인 페이지
- 7. 티켓 목록, 티켓 단건 READ
- 8. 파일함
- 9. 중요업무(장바구니)
+ - 회원 가입
+ - 로그인, 로그아웃
+ - 소셜 로그인 & 회원가입
+ - 얼굴등록 및 로그인 (임베딩)
+ - 관리자 페이지
+ - 메인 페이지
+ - 티켓 목록, 티켓 단건 READ
+ - 파일함
+ - 중요업무(장바구니)
 
 
 
 #### 한정연 : 
- 1. AI 채팅
- 2. UI/UX
+ - AI 채팅
+ - UI/UX
 
 
 #### 박태오 :
- 1. 자연어로 티켓 구성
+ - 자연어로 티켓 구성
 
 
 #### 오인준 :
- 1. 댓글, 대댓글
- 2. STT APP
+ - 댓글, 대댓글
+ - STT APP
 
 #### 박건영 :
- 1. 음성파일로 회의록 PDF 자동작성
+ - 음성파일로 회의록 PDF 자동작성
  2. 불용어 처리
 
 
