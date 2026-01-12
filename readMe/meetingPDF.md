@@ -9,4 +9,4 @@
 
 
 ### (2)
-<img width="576" height="424" alt="Image" src="https://github.com/user-attachments/assets/e7a59bef-547a-4bfc-9fe4-df3bbd9837b0" />
+<<img width="578" height="283" alt="Image" src="https://github.com/user-attachments/assets/b128c7a4-7c55-484d-b66b-f220bceaa8ca" />
