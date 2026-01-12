@@ -11,9 +11,15 @@
 | [<img src="https://avatars.githubusercontent.com/minsik321" width="160" />](https://github.com/minsik321) | [<img src="https://avatars.githubusercontent.com/DOT-SOY" width="160" />](https://github.com/DOT-SOY) | [<img src="https://avatars.githubusercontent.com/teomichaelpark-glitch" width="160" />](https://github.com/teomichaelpark-glitch) | [<img src="https://avatars.githubusercontent.com/01nJun" width="160" />](https://github.com/01nJun) | [<img src="https://avatars.githubusercontent.com/keonyeong4550" width="160" />](https://github.com/keonyeong4550) |
 
 #### 김민식 :
-로그인 및 회원가입 : JWT를 이용한 보안처리 및 백엔드 스프링 시큐리티 사용하여 구현
-파일업로드
-Redis
+ 1. 회원 가입
+ 2. 로그인, 로그아웃
+ 3. 소셜 로그인 & 회원가입
+ 4. 얼굴등록 및 로그인 (임베딩)
+ 5. 관리자 페이지
+ 6. 메인 페이지
+ 7. 티켓 목록, 티켓 단건 READ
+ 8. 파일함
+ 9. 중요업무(장바구니)
 
 
 
