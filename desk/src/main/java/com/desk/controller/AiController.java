@@ -1,12 +1,16 @@
 package com.desk.controller;
 
+import com.desk.dto.AITicketRequestDTO;
+import com.desk.dto.AITicketResponseDTO;
 import com.desk.dto.MeetingMinutesDTO;
+import com.desk.service.AITicketService;
 import com.desk.service.OllamaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,6 +23,7 @@ import java.util.Map;
 public class AiController {
 
     private final OllamaService ollamaService;
+    private final AITicketService aiTicketService;
 
     // 1. 단순 텍스트 요약 요청
     @PostMapping(value = "/summary")
@@ -35,41 +40,6 @@ public class AiController {
                 data.getDetails()
         );
         return ResponseEntity.ok(result);
-    }
-
-    // 2. [수정] PDF 회의록 다운로드 요청 (이제 파일도 받음!)
-    @PostMapping("/summarize-report")
-    public ResponseEntity<?> downloadMeetingPdf(
-            @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestPart(value = "data") MeetingMinutesDTO data
-    ) {
-        // 1. AI 요약 실행 (파일이 있으면 파일 내용도 포함해서 분석)
-        MeetingMinutesDTO meetingData = ollamaService.getMeetingInfoFromAi(
-                file, data.getTitle(), data.getShortSummary(), data.getOverview(), data.getDetails());
-
-        // 2. PDF 바이너리 생성
-        byte[] pdfBytes = ollamaService.generatePdf(meetingData);
-        // 🔐 PDF 검증
-        if (pdfBytes == null || pdfBytes.length < 5 ||
-                !new String(pdfBytes, 0, 5).equals("%PDF-")) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body("PDF 생성에 실패했습니다.");
-        }
-
-
-        // 3. 파일 다운로드 헤더 설정
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_PDF);
-        String filename = "Meeting_Minutes.pdf";
-        headers.setContentDispositionFormData("attachment", filename);
-        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(pdfBytes);
     }
     // ✅ 3. 파란창 요약 데이터 그대로 PDF 생성
     @PostMapping("/summary-pdf")
@@ -99,5 +69,16 @@ public class AiController {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(pdfBytes);
+    }
+    @PostMapping("/ticket/chat")
+    @PreAuthorize("isAuthenticated()") // 로그인한 사용자만 가능
+    public AITicketResponseDTO chat(@RequestBody AITicketRequestDTO request) {
+
+        log.info("[AI Ticket] Chat Request | ConvID: {} | User: {}",
+                request.getConversationId(),
+                request.getSenderDept());
+
+        // 핵심 로직 실행 (라우팅 -> 담당자 -> 인터뷰)
+        return aiTicketService.processRequest(request);
     }
 }
