@@ -28,13 +28,14 @@ const AddComponent = () => {
     setFetching(true);
     postAdd(boardObj)
       .then((data) => {
-        setFetching(false);
         alert("게시물이 작성되었습니다.");
         moveToList({ page: 1 });
       })
       .catch((err) => {
-        setFetching(false);
         alert("등록 오류가 발생했습니다.");
+      })
+      .finally(() => {
+        setFetching(false);
       });
   };
 

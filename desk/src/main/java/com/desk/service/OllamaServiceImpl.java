@@ -379,7 +379,7 @@ public class OllamaServiceImpl implements OllamaService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             String apiKey = ollamaConfig.getApiKey();  // ollamaConfig에서 가져오기
             if (apiKey != null && !apiKey.isEmpty()) {
-                headers.set("x-api-key", apiKey);
+                headers.set("X-API-Key", apiKey);
             }
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);

@@ -30,10 +30,11 @@ const ReadComponent = ({ bno }) => {
     getOne(bno)
       .then((data) => {
         setBoard(data);
-        setFetching(false);
       })
       .catch((err) => {
         console.error("데이터 로딩 에러:", err);
+      })
+      .finally(() => {
         setFetching(false);
       });
   }, [bno]);
