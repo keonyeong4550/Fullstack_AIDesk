@@ -21,12 +21,13 @@ const ModifyComponent = ({ bno }) => {
     getOne(bno)
       .then((data) => {
         setBoard(data);
-        setFetching(false);
       })
       .catch((err) => {
-        setFetching(false);
         console.error("데이터 로딩 에러:", err);
         alert("게시글 정보를 불러올 수 없습니다.");
+      })
+      .finally(() => {
+        setFetching(false);
       });
   }, [bno]);
 
@@ -45,16 +46,16 @@ const ModifyComponent = ({ bno }) => {
       .then((data) => {
         if (data?.error) {
           alert("수정 실패: 권한이 없습니다.");
-          setFetching(false);
           return;
         }
-        setFetching(false);
         alert("성공적으로 수정되었습니다.");
         moveToRead(bno);
       })
       .catch((err) => {
-        setFetching(false);
         alert("서버 통신 에러가 발생했습니다.");
+      })
+      .finally(() => {
+        setFetching(false);
       });
   };
 
@@ -65,16 +66,16 @@ const ModifyComponent = ({ bno }) => {
         .then((data) => {
           if (data?.error) {
             alert("삭제 실패: 권한이 없습니다.");
-            setFetching(false);
             return;
           }
-          setFetching(false);
           alert("삭제되었습니다.");
           moveToList();
         })
         .catch((err) => {
-          setFetching(false);
           alert("삭제 처리 중 에러가 발생했습니다.");
+        })
+        .finally(() => {
+          setFetching(false);
         });
     }
   };

@@ -36,11 +36,12 @@ const ListComponent = () => {
     getList({ page, size, keyword, type, category })
       .then((data) => {
         if (data) setServerData(data);
-        setFetching(false);
       })
       .catch((err) => {
-        setFetching(false);
         exceptionHandle(err);
+      })
+      .finally(() => {
+        setFetching(false);
       });
   }, [page, size, refresh, keyword, type, category]);
 
