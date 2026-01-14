@@ -69,8 +69,6 @@
 ![Image](https://github.com/user-attachments/assets/f6d31268-7d0e-4170-bba5-4ef5ac29f670)
 ### 티켓 목록
 ![Image](https://github.com/user-attachments/assets/9a6275a8-f951-46a4-9c6c-507ba0c8659c)
-### 티켓 단건 READ
-![Image](https://github.com/user-attachments/assets/5318c07a-4723-424e-ad56-da50ac366185)
 ### 중요업무(장바구니)
 ![Image](https://github.com/user-attachments/assets/eea72182-d64d-4179-885f-e1e2868c8f87)
 ### 파일함
