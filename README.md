@@ -194,8 +194,4 @@
 
 ### [불용어 처리 주요코드](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/noWords.md)
 
-↓ 실제 붙일 코드
-### [불용어 처리 주요코드](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/noWords.md)
-
-
 ---
