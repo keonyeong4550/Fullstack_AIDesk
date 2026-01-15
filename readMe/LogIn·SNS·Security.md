@@ -13,8 +13,6 @@
 ![Image](https://github.com/user-attachments/assets/f5c795e2-23be-489d-9bb0-7bd0c5ee395f)
 ### 관리자 페이지
 ![Image](https://github.com/user-attachments/assets/f6d31268-7d0e-4170-bba5-4ef5ac29f670)
-### 티켓 목록
-![Image](https://github.com/user-attachments/assets/9a6275a8-f951-46a4-9c6c-507ba0c8659c)
 ### 중요업무(장바구니)
 ![Image](https://github.com/user-attachments/assets/eea72182-d64d-4179-885f-e1e2868c8f87)
 ### 파일함
