@@ -1,4 +1,123 @@
+
+## 한정연
+
+# 🧑‍💻 담당 기능 요약 (Chat · AI · Ticket Back-End)
+
+- **업무 관리 시스템 백엔드 CRUD**
+    - 업무 요청서의 생성 / 조회 / 수정 / 삭제 API 초기 구현
+    - 이후 업무 요청서 단건 조회 프론트 연동
+- **채팅 도메인 설계**
+    - ChatRoom / ChatMessage / Participant 설계
+    - 사용자 기준 1:1 / 그룹 채팅 확장 가능한 구조
+- **WebSocket 실시간 통신**
+    - SockJS + STOMP 기반 실시간 채팅 구현
+    - JWT 기반 인증이 적용된 WebSocket 통신 구현
+- **채팅 무한 스크롤**
+    - 최신 메시지 기준 역방향 로딩 방식
+    - 페이지 단위 조회 + 성능 최적화 적용
+- **AI 메시지 필터링**
+    - Ollama API 연동을 통한 메시지 필터링
+    - On / Off 토글 가능하도록 사용자 설정 구조로 구현
+- **WebClient 기반 AI 비동기 처리**
+    - Spring WebClient로 Ollama API 비동기 호출
+    - 채팅 흐름을 막지 않는 논블로킹 구조 적용
+- **Ollama 서버 구축**
+    - 로컬 Ollama 서버 구성 및 연동
+    - 내부 AI 필터링용 모델 운영 환경 구성
+
 ---
+
+# 🚀 주요 기능
+
+1. WebSocket 기반 실시간 채팅
+2. JWT 인증이 적용된 STOMP 메시지 통신
+3. 채팅 메시지 무한 스크롤
+4. Ollama 연동 AI 메시지 필터링
+5. Ticket CRUD 및 단건 조회 API
+6. 비동기 AI 처리 기반 사용자 경험 개선
+
+---
+
+# 👥 구현 기능 & 역할
+
+| 구현 기능 | Front-End 담당 | Back-End 담당 | 설계 및 특징 |
+| --- | --- | --- | --- |
+| **티켓 CRUD** | • 티켓 목록 / 상세 UI• 상태별 필터링 UI | • 티켓 생성 / 조회 / 수정 / 삭제 API• 단건 조회 로직 분리 | • 업무 요청 단위 도메인 설계• 채팅과 연계 가능한 구조 |
+| **채팅 도메인 설계** | • 채팅 UI 구성• 메시지 렌더링 | • ChatRoom / ChatMessage 엔티티 설계• 참여자 기반 권한 구조 | • 1:1 / 그룹 확장 고려한 구조• 메시지 단위 저장 |
+| **WebSocket 실시간 통신** | • SockJS + STOMP 연결• 메시지 송수신 처리 | • WebSocketConfig 구성• STOMP 엔드포인트 설계 | • HTTP + 메시지 레벨 이중 인증 구조 |
+| **JWT 인증 WebSocket** | • 토큰 포함 연결 요청 | • JWTFilter + ChannelInterceptor 적용 | • SockJS / WebSocket / STOMP 단계별 인증 |
+| **채팅 무한 스크롤** | • 스크롤 이벤트 처리• 이전 메시지 로딩 | • 페이지 기반 메시지 조회 API | • 성능 최적화• DOM 최소화 |
+| **AI 메시지 필터링** | • 필터 On/Off UI | • Ollama API 호출• 메시지 전처리 | • 사용자 설정 기반 필터링• 논블로킹 처리 |
+| **Ollama 연동** | • 필터 결과 표시 | • WebClient 비동기 호출 | • 채팅 흐름 차단 없는 AI 처리 |
+
+---
+
+# 🔄 채팅 전체 동작 흐름 요약 (WebSocket 인증 포함)
+
+| 단계 | 구간 | 설명 |
+| --- | --- | --- |
+| 1 | Client → SockJS 연결 | SockJS를 통해 WebSocket 연결 시도 |
+| 2 | `/ws/info` | SockJS 사전 요청 → **JWTFilter 인증 수행** |
+| 3 | `/ws/websocket` | 실제 WebSocket HTTP 핸드셰이크 |
+| 4 | JWTFilter 재실행 | WebSocket도 HTTP 요청이므로 재인증 |
+| 5 | STOMP CONNECT | WebSocket 위에서 STOMP 프로토콜 연결 |
+| 6 | ChannelInterceptor | STOMP 메시지 레벨 인증 수행 |
+| 7 | Principal 설정 | 이후 모든 메시지는 인증 사용자 기준 처리 |
+
+---
+
+# 🧩 WebSocket / SockJS / STOMP 역할 정리
+
+| 구성 요소 | 역할 | 한 줄 설명 |
+| --- | --- | --- |
+| WebSocket | 통신 | 실제 양방향 실시간 연결 |
+| SockJS | 연결 추상화 | WebSocket 미지원 환경 대응 |
+| STOMP | 메시지 규약 | 구독 기반 메시지 라우팅 제공 |
+
+---
+
+# ❓ WebSocket만 쓰지 않고 STOMP를 사용하는 이유
+
+### WebSocket 단독 사용 시 한계
+
+| 한계 | 설명 |
+| --- | --- |
+| 메시지 구조 없음 | 포맷 직접 정의 필요 |
+| 라우팅 개념 없음 | 목적지 분기 로직 직접 구현 |
+| 구독 개념 없음 | pub/sub 직접 구현 필요 |
+| 브로드캐스트 부담 | 다수 전송 로직 직접 작성 |
+
+### STOMP 사용 효과
+
+| 제공 기능 | 효과 |
+| --- | --- |
+| destination | 메시지 라우팅 단순화 |
+| SUBSCRIBE | 구독 기반 통신 |
+| 프레임 구조 | 메시지 규칙 명확 |
+| 브로커 모델 | 브로드캐스트 자동 처리 |
+
+---
+
+# 🔐 인증을 3단계로 수행하는 이유
+
+| 단계 | 인증 위치 | 이유 |
+| --- | --- | --- |
+| 1 | `/ws/info` | SockJS 사전 연결 확인 요청 |
+| 2 | `/ws/websocket` | 실제 WebSocket 핸드셰이크 |
+| 3 | STOMP CONNECT | STOMP는 HTTP Filter를 타지 않음 |
+
+---
+
+# ✅ 여러 번 인증해도 괜찮은 이유
+
+| 이유 | 설명 |
+| --- | --- |
+| JWT Stateless | 요청마다 검증해도 서버 부담 없음 |
+| 요청 분리 | `/info`와 `/websocket`은 서로 다른 요청 |
+| 보안 강화 | 중간 단계 우회 차단 |
+
+---
+
 
 # 플로우 차트
 
@@ -13,6 +132,7 @@
 
 ### CHAT 1:1 대화 & 그룹대화
 ![Image](https://github.com/user-attachments/assets/e9e9493c-8a58-4b9f-a580-6a52070056d6)
+
 ### 티켓 목록
 ![Image](https://github.com/user-attachments/assets/9a6275a8-f951-46a4-9c6c-507ba0c8659c)
 

@@ -184,7 +184,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 # ERD 구조
 
-<img width="1389" height="964" alt="Image" src="https://github.com/user-attachments/assets/ef31f1f9-6f57-418e-983b-b78f06e0c516" />
+![Image](https://github.com/user-attachments/assets/6d476b6d-aed0-48b7-ac3d-1c6014dc3a30)
 
 # 계층구조
 
@@ -232,16 +232,16 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 <summary><b>📊 성능 테스트 상세 결과 보기</b></summary>
 
 ### Redis 성능 테스트 결과
-<img width="1045" height="414" alt="Image" src="https://github.com/user-attachments/assets/1e3a78bb-6adf-4577-b782-eabbb4f08580" />
+![Image](https://github.com/user-attachments/assets/7eb99567-76cc-4382-9e49-b454a9ea0da8)
 
 ### DB 성능 테스트 결과
-<img width="1050" height="356" alt="Image" src="https://github.com/user-attachments/assets/a3ea0a21-d1a4-4246-a635-330a92f616d8" />
+![Image](https://github.com/user-attachments/assets/de202402-e44a-4173-a99a-749766338dac)
 
 ### 무한 스크롤 미적용
-<img width="939" height="625" alt="Image" src="https://github.com/user-attachments/assets/34a5f5c1-7fb6-4001-8a39-5f02a91d7c92" />
+![Image](https://github.com/user-attachments/assets/72cfbfa1-02b9-4ec2-8590-f682a960a500)
 
 ### 무한 스크롤 적용
-<img width="940" height="650" alt="Image" src="https://github.com/user-attachments/assets/f9f6fcc1-c0ba-4cb1-87d7-ac56d96f48bb" />
+![Image](https://github.com/user-attachments/assets/bd9fa403-4791-43ab-b29f-9f1811bbcfa1) 
 
 </details>
 
@@ -251,7 +251,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 ## 구현 기능
 
 ### 반응형
-![Image](https://github.com/user-attachments/assets/536abb1c-45e5-4cc7-929a-ebf7c953193f)
+![Image](https://github.com/user-attachments/assets/6e8811fa-6965-4fb5-9da9-aa9102d9ab15)
 
 
 ## 로그인 & 소셜로그인 & 보안
@@ -268,7 +268,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ### Chat·AI
 
-![Image](https://github.com/user-attachments/assets/c4414587-5ef5-4969-b8cb-10562cee5683)
+![Image](https://github.com/user-attachments/assets/bc6f03fc-8714-44bc-a1bf-52ee9576a632)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/Chat·AI·Backend.md)
 
@@ -276,7 +276,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## AI·RAG·FileSearch
 
-![Image](https://github.com/user-attachments/assets/a8dcab06-69d8-4c81-8570-d932cea8e089)
+![Image](https://github.com/user-attachments/assets/69696869-df4d-4374-b7e1-a7d84f0a8903)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/AI·RAG·FileSearch.md)
 
@@ -284,7 +284,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## 댓글, 대댓글, 수정 및 삭제 (CRUD) 및 STT(음성 to 텍스트)
 
-![Image](https://github.com/user-attachments/assets/12765adb-a50c-448b-a1bf-f964e2b795f1)
+![Image](https://github.com/user-attachments/assets/5c234a7c-3ad0-4d29-9e86-939c8419231e)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/reply·STT.md)
 
@@ -293,7 +293,8 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## 회의록 PDF 자동변환
 
-![Image](https://github.com/user-attachments/assets/0fbc3b61-f3a0-4e37-8c45-0fa9031ae369)
+![Image](https://github.com/user-attachments/assets/68285980-aed3-489c-86ef-abda8ad4663a)
+
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/meetingPDF.md)
 
