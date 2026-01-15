@@ -31,6 +31,7 @@ public class ChatMessageDTO {
     private LocalDateTime createdAt;
     private Boolean ticketTrigger; // 티켓 생성 문맥 감지 여부 (AI 처리 시)
     private Boolean profanityDetected; // 금칙어 감지 여부 (자동 AI 적용)
+    private Boolean aiProcessing; // AI 처리 중인지 여부 (비동기 처리 시)
     
     // 첨부 파일 목록
     @Builder.Default

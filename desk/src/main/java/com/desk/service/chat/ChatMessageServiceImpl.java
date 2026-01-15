@@ -20,8 +20,11 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
@@ -43,6 +46,7 @@ public class ChatMessageServiceImpl implements ChatMessageService {
     private final AiMessageProcessor aiMessageProcessor;
     private final AiChatWordGuard aiChatWordGuard;
     private final CustomFileUtil fileUtil;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * [TEST MODE]
@@ -134,10 +138,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
-        // AI/TEST 처리 결과
+        // AI 처리 전략 결정
         // ============================================================
         String finalContent = filteredContent;
         boolean ticketTrigger = ticketTriggerFromKeywords; // 키워드 감지 시 먼저 설정
+        boolean needsAsyncAiProcessing = false;
 
         if (effectiveAiEnabled) {
             // ===========================
@@ -155,20 +160,15 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 }
             } else {
                 // ===========================
-                // [NORMAL] 기존 AI 정제 로직
+                // [NORMAL] 비동기 AI 처리 필요
                 // ===========================
-                AiMessageProcessor.ProcessResult aiResult = aiMessageProcessor.processMessage(
-                        originalContent,  // ✅ 기존 ON 로직 유지: 원문 기반 AI 처리
-                        true
-                );
-                finalContent = aiResult.getProcessedContent();
-                // 키워드나 AI 결과 중 하나라도 true면 트리거
-                ticketTrigger = ticketTrigger || aiResult.isTicketTrigger();
+                // ⚠️ AI 처리 완료 전까지는 메시지를 저장하지 않음
+                needsAsyncAiProcessing = true;
             }
         }
 
         // ============================================================
-        // (A) 티켓 트리거 감지 시: 메시지 저장 건너뜀(상대방에게 전달 안 되게)
+        // 티켓 트리거 감지 시: 메시지 저장 건너뜀(상대방에게 전달 안 되게)
         // ============================================================
         if (ticketTrigger && !isTicketPreview) {
             log.info("[Chat] 티켓 트리거 감지 - 메시지 저장 건너뜀 | roomId={} | senderId={}", roomId, senderId);
@@ -197,7 +197,62 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
-        // 저장 로직
+        // AI 처리가 필요한 경우: 비동기 처리 후 저장
+        // ============================================================
+        if (needsAsyncAiProcessing) {
+            long requestStartTime = System.currentTimeMillis();
+            String requestThreadId = Thread.currentThread().getName();
+            
+            log.info("[Chat] 비동기 AI 처리 예약 | roomId={} | senderId={} | requestThread={} | requestStartTime={}", 
+                    roomId, senderId, requestThreadId, requestStartTime);
+            
+            // 발신자에게 "처리 중" 응답 반환 (메시지는 아직 저장 안 됨)
+            String nickname = memberRepository.findById(senderId)
+                    .map(m -> m.getNickname())
+                    .orElse(senderId);
+
+            ChatMessageDTO pendingDto = ChatMessageDTO.builder()
+                    .id(null)
+                    .chatRoomId(roomId)
+                    .messageSeq(null)
+                    .senderId(senderId)
+                    .senderNickname(nickname)
+                    .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                    .content("[AI 처리 중...]")
+                    .ticketId(null)
+                    .createdAt(null)
+                    .ticketTrigger(false)
+                    .unreadCount(null)
+                    .isRead(null)
+                    .profanityDetected(profanityDetected)
+                    .aiProcessing(true) // AI 처리 중 플래그
+                    .build();
+
+            // 비동기로 AI 처리 시작 (트랜잭션 커밋 후)
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        long afterCommitTime = System.currentTimeMillis();
+                        String commitThreadId = Thread.currentThread().getName();
+                        log.info("[Chat] 트랜잭션 커밋 완료 - AI 처리 시작 | roomId={} | commitThread={} | requestThread={} | afterCommitTime={} | elapsed={}ms", 
+                                roomId, commitThreadId, requestThreadId, afterCommitTime, (afterCommitTime - requestStartTime));
+                        
+                        processAiAndSaveMessage(roomId, createDTO, senderId, originalContent, 
+                                              ticketTrigger, profanityDetected, isTicketPreview);
+                    }
+                }
+            );
+
+            long requestEndTime = System.currentTimeMillis();
+            log.info("[Chat] 요청 즉시 응답 반환 | roomId={} | responseTime={}ms | requestThread={}", 
+                    roomId, (requestEndTime - requestStartTime), requestThreadId);
+            
+            return pendingDto;
+        }
+
+        // ============================================================
+        // AI 처리가 필요 없는 경우: 즉시 저장 및 반환
         // ============================================================
         Long maxSeq = chatMessageRepository.findMaxMessageSeqByChatRoomId(roomId);
         Long newSeq = maxSeq + 1;
@@ -239,6 +294,183 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         dto.setProfanityDetected(profanityDetected);
 
         return dto;
+    }
+    
+    /**
+     * AI 처리 후 메시지 저장 및 브로드캐스트
+     */
+    private void processAiAndSaveMessage(Long roomId, ChatMessageCreateDTO createDTO, 
+                                         String senderId, String originalContent,
+                                         boolean ticketTrigger, boolean profanityDetected,
+                                         boolean isTicketPreview) {
+        
+        String processThreadId = Thread.currentThread().getName();
+        long processStartTime = System.currentTimeMillis();
+        
+        log.info("[Chat] 비동기 AI 처리 시작 | roomId={} | senderId={} | processThread={} | processStartTime={}", 
+                roomId, senderId, processThreadId, processStartTime);
+        
+        aiMessageProcessor.processMessageAsync(
+            originalContent,
+            true,
+            // AI 처리 완료 콜백
+            result -> {
+                String callbackThreadId = Thread.currentThread().getName();
+                long callbackTime = System.currentTimeMillis();
+                
+                log.info("[Chat] AI 처리 완료 콜백 | roomId={} | callbackThread={} | processThread={} | callbackTime={} | elapsed={}ms", 
+                        roomId, callbackThreadId, processThreadId, callbackTime, (callbackTime - processStartTime));
+                
+                try {
+                    String filteredContent = result.getProcessedContent();
+                    boolean finalTicketTrigger = ticketTrigger || result.isTicketTrigger();
+                    
+                    // 티켓 트리거가 감지되면 메시지 저장 안 함
+                    if (finalTicketTrigger && !isTicketPreview) {
+                        log.info("[Chat] AI 처리 후 티켓 트리거 감지 - 메시지 저장 안 함 | roomId={}", roomId);
+                        
+                        // 티켓 트리거 메시지로만 브로드캐스트 (DB 저장 없음)
+                        String nickname = memberRepository.findById(senderId)
+                                .map(m -> m.getNickname())
+                                .orElse(senderId);
+                        
+                        ChatMessageDTO triggerDto = ChatMessageDTO.builder()
+                                .id(null)
+                                .chatRoomId(roomId)
+                                .messageSeq(null)
+                                .senderId(senderId)
+                                .senderNickname(nickname)
+                                .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                                .content(filteredContent)
+                                .ticketId(null)
+                                .createdAt(null)
+                                .ticketTrigger(true)
+                                .unreadCount(null)
+                                .isRead(null)
+                                .profanityDetected(profanityDetected)
+                                .build();
+                        
+                        messagingTemplate.convertAndSend("/topic/chat/" + roomId, triggerDto);
+                        return;
+                    }
+                    
+                    // AI 처리 완료: 메시지 저장 및 브로드캐스트
+                    ChatRoom room = chatRoomRepository.findById(roomId)
+                            .orElse(null);
+                    
+                    if (room == null) {
+                        log.warn("[Chat] 채팅방을 찾을 수 없음 | roomId={}", roomId);
+                        return;
+                    }
+                    
+                    Long maxSeq = chatMessageRepository.findMaxMessageSeqByChatRoomId(roomId);
+                    Long newSeq = (maxSeq != null ? maxSeq : 0L) + 1;
+                    
+                    ChatMessage message = ChatMessage.builder()
+                            .chatRoom(room)
+                            .messageSeq(newSeq)
+                            .senderId(senderId)
+                            .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                            .content(filteredContent) // ✅ AI 정제된 내용만 저장
+                            .ticketId(createDTO.getTicketId())
+                            .build();
+                    
+                    message = chatMessageRepository.save(message);
+                    room.updateLastMessage(newSeq, filteredContent);
+                    
+                    ChatParticipant senderParticipant = chatParticipantRepository
+                            .findByChatRoomIdAndUserId(roomId, senderId)
+                            .orElse(null);
+                    
+                    if (senderParticipant != null) {
+                        senderParticipant.markRead(newSeq);
+                        log.info("[Chat] 발신자 자동 읽음 처리 | roomId={} | senderId={} | messageSeq={}",
+                                roomId, senderId, newSeq);
+                    }
+                    
+                    // unreadCount/isRead 계산용 참여자 맵
+                    List<ChatParticipant> participants = chatParticipantRepository
+                            .findByChatRoomIdAndStatus(roomId, ChatStatus.ACTIVE);
+                    Map<String, Long> lastReadSeqMap = participants.stream()
+                            .collect(Collectors.toMap(
+                                    ChatParticipant::getUserId,
+                                    ChatParticipant::getLastReadSeq,
+                                    (a, b) -> a
+                            ));
+                    
+                    ChatMessageDTO dto = toChatMessageDTOOptimized(message, senderId, room, lastReadSeqMap);
+                    dto.setTicketTrigger(false);
+                    dto.setProfanityDetected(profanityDetected);
+                    
+                    long saveTime = System.currentTimeMillis();
+                    log.info("[Chat] AI 처리 완료 - 메시지 저장 및 브로드캐스트 | roomId={} | messageSeq={} | totalElapsed={}ms | content={}", 
+                            roomId, newSeq, (saveTime - processStartTime),
+                            filteredContent.length() > 50 ? filteredContent.substring(0, 50) + "..." : filteredContent);
+                    
+                    // ✅ AI 처리 완료 후에만 브로드캐스트 (정제된 메시지만 전송)
+                    messagingTemplate.convertAndSend("/topic/chat/" + roomId, dto);
+                    
+                } catch (Exception e) {
+                    long errorTime = System.currentTimeMillis();
+                    log.error("[Chat] AI 처리 후 메시지 저장 실패 | roomId={} | error={} | elapsed={}ms", 
+                            roomId, e.getMessage(), (errorTime - processStartTime), e);
+                    
+                    // 에러 발생 시 발신자에게만 에러 알림
+                    String nickname = memberRepository.findById(senderId)
+                            .map(m -> m.getNickname())
+                            .orElse(senderId);
+                    
+                    ChatMessageDTO errorDto = ChatMessageDTO.builder()
+                            .id(null)
+                            .chatRoomId(roomId)
+                            .messageSeq(null)
+                            .senderId(senderId)
+                            .senderNickname(nickname)
+                            .messageType(ChatMessageType.SYSTEM)
+                            .content("메시지 처리 중 오류가 발생했습니다.")
+                            .ticketId(null)
+                            .createdAt(null)
+                            .ticketTrigger(false)
+                            .unreadCount(null)
+                            .isRead(null)
+                            .profanityDetected(false)
+                            .build();
+                    
+                    messagingTemplate.convertAndSend("/topic/chat/" + roomId, errorDto);
+                }
+            },
+            // 에러 콜백
+            error -> {
+                String errorThreadId = Thread.currentThread().getName();
+                long errorTime = System.currentTimeMillis();
+                
+                log.error("[Chat] AI 처리 에러 콜백 | roomId={} | errorThread={} | processThread={} | errorTime={} | elapsed={}ms | error={}", 
+                        roomId, errorThreadId, processThreadId, errorTime, (errorTime - processStartTime), error.getMessage());
+                
+                // 에러 발생 시 원문을 저장하지 않고 에러 메시지만 전송
+                String nickname = memberRepository.findById(senderId)
+                        .map(m -> m.getNickname())
+                        .orElse(senderId);
+                
+                ChatMessageDTO errorDto = ChatMessageDTO.builder()
+                        .id(null)
+                        .chatRoomId(roomId)
+                        .messageSeq(null)
+                        .senderId(senderId)
+                        .senderNickname(nickname)
+                        .messageType(ChatMessageType.SYSTEM)
+                        .content("메시지 처리 중 오류가 발생했습니다.")
+                        .ticketId(null)
+                        .createdAt(null)
+                        .ticketTrigger(false)
+                        .unreadCount(null)
+                        .isRead(null)
+                        .profanityDetected(false)
+                        .build();
+                
+                messagingTemplate.convertAndSend("/topic/chat/" + roomId, errorDto);
+            }
+        );
     }
 
     @Override
@@ -300,10 +532,11 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
-        // AI/TEST 처리 결과
+        // AI 처리 전략 결정
         // ============================================================
         String finalContent = filteredContent;
         boolean ticketTrigger = ticketTriggerFromKeywords; // 키워드 감지 시 먼저 설정
+        boolean needsAsyncAiProcessing = false;
 
         if (effectiveAiEnabled) {
             // ===========================
@@ -320,20 +553,15 @@ public class ChatMessageServiceImpl implements ChatMessageService {
                 }
             } else {
                 // ===========================
-                // [NORMAL] 기존 AI 정제 로직
+                // [NORMAL] 비동기 AI 처리 필요
                 // ===========================
-                AiMessageProcessor.ProcessResult aiResult = aiMessageProcessor.processMessage(
-                        originalContent,
-                        true
-                );
-                finalContent = aiResult.getProcessedContent();
-                // 키워드나 AI 결과 중 하나라도 true면 트리거
-                ticketTrigger = ticketTrigger || aiResult.isTicketTrigger();
+                // ⚠️ AI 처리 완료 전까지는 메시지를 저장하지 않음
+                needsAsyncAiProcessing = true;
             }
         }
 
         // ============================================================
-        // (A) 티켓 트리거 감지 시: 메시지 저장 건너뜀(상대방에게 전달 안 되게)
+        // 티켓 트리거 감지 시: 메시지 저장 건너뜀(상대방에게 전달 안 되게)
         // ============================================================
         if (ticketTrigger && !isTicketPreview) {
             log.info("[Chat] 티켓 트리거 감지 - 메시지 저장 건너뜀 | roomId={} | senderId={}", roomId, senderId);
@@ -361,7 +589,63 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         }
 
         // ============================================================
-        // 저장 로직
+        // AI 처리가 필요한 경우: 비동기 처리 후 저장
+        // ============================================================
+        if (needsAsyncAiProcessing) {
+            long requestStartTime = System.currentTimeMillis();
+            String requestThreadId = Thread.currentThread().getName();
+            
+            log.info("[Chat] 비동기 AI 처리 예약 (파일 포함) | roomId={} | senderId={} | requestThread={} | requestStartTime={}", 
+                    roomId, senderId, requestThreadId, requestStartTime);
+            
+            // 발신자에게 "처리 중" 응답 반환 (메시지는 아직 저장 안 됨)
+            String nickname = memberRepository.findById(senderId)
+                    .map(m -> m.getNickname())
+                    .orElse(senderId);
+
+            ChatMessageDTO pendingDto = ChatMessageDTO.builder()
+                    .id(null)
+                    .chatRoomId(roomId)
+                    .messageSeq(null)
+                    .senderId(senderId)
+                    .senderNickname(nickname)
+                    .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                    .content("[AI 처리 중...]")
+                    .ticketId(null)
+                    .createdAt(null)
+                    .ticketTrigger(false)
+                    .unreadCount(null)
+                    .isRead(null)
+                    .profanityDetected(profanityDetected)
+                    .aiProcessing(true) // AI 처리 중 플래그
+                    .files(new ArrayList<>())
+                    .build();
+
+            // 비동기로 AI 처리 시작 (트랜잭션 커밋 후)
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override
+                    public void afterCommit() {
+                        long afterCommitTime = System.currentTimeMillis();
+                        String commitThreadId = Thread.currentThread().getName();
+                        log.info("[Chat] 트랜잭션 커밋 완료 - AI 처리 시작 (파일 포함) | roomId={} | commitThread={} | requestThread={} | afterCommitTime={} | elapsed={}ms", 
+                                roomId, commitThreadId, requestThreadId, afterCommitTime, (afterCommitTime - requestStartTime));
+                        
+                        processAiAndSaveMessageWithFiles(roomId, createDTO, files, senderId, originalContent, 
+                                                        ticketTrigger, profanityDetected, isTicketPreview);
+                    }
+                }
+            );
+
+            long requestEndTime = System.currentTimeMillis();
+            log.info("[Chat] 요청 즉시 응답 반환 (파일 포함) | roomId={} | responseTime={}ms | requestThread={}", 
+                    roomId, (requestEndTime - requestStartTime), requestThreadId);
+            
+            return pendingDto;
+        }
+
+        // ============================================================
+        // AI 처리가 필요 없는 경우: 즉시 저장 및 반환
         // ============================================================
         Long maxSeq = chatMessageRepository.findMaxMessageSeqByChatRoomId(roomId);
         Long newSeq = (maxSeq != null ? maxSeq : 0L) + 1;
@@ -454,6 +738,232 @@ public class ChatMessageServiceImpl implements ChatMessageService {
         dto.setFiles(fileDTOs);
 
         return dto;
+    }
+    
+    /**
+     * AI 처리 후 메시지 저장 및 브로드캐스트 (파일 포함)
+     */
+    private void processAiAndSaveMessageWithFiles(Long roomId, ChatMessageCreateDTO createDTO, 
+                                                  List<MultipartFile> files, String senderId, 
+                                                  String originalContent, boolean ticketTrigger, 
+                                                  boolean profanityDetected, boolean isTicketPreview) {
+        
+        String processThreadId = Thread.currentThread().getName();
+        long processStartTime = System.currentTimeMillis();
+        
+        log.info("[Chat] 비동기 AI 처리 시작 (파일 포함) | roomId={} | senderId={} | processThread={} | processStartTime={}", 
+                roomId, senderId, processThreadId, processStartTime);
+        
+        aiMessageProcessor.processMessageAsync(
+            originalContent,
+            true,
+            // AI 처리 완료 콜백
+            result -> {
+                String callbackThreadId = Thread.currentThread().getName();
+                long callbackTime = System.currentTimeMillis();
+                
+                log.info("[Chat] AI 처리 완료 콜백 (파일 포함) | roomId={} | callbackThread={} | processThread={} | callbackTime={} | elapsed={}ms", 
+                        roomId, callbackThreadId, processThreadId, callbackTime, (callbackTime - processStartTime));
+                
+                try {
+                    String filteredContent = result.getProcessedContent();
+                    boolean finalTicketTrigger = ticketTrigger || result.isTicketTrigger();
+                    
+                    // 티켓 트리거가 감지되면 메시지 저장 안 함
+                    if (finalTicketTrigger && !isTicketPreview) {
+                        log.info("[Chat] AI 처리 후 티켓 트리거 감지 - 메시지 저장 안 함 | roomId={}", roomId);
+                        
+                        // 티켓 트리거 메시지로만 브로드캐스트 (DB 저장 없음)
+                        String nickname = memberRepository.findById(senderId)
+                                .map(m -> m.getNickname())
+                                .orElse(senderId);
+                        
+                        ChatMessageDTO triggerDto = ChatMessageDTO.builder()
+                                .id(null)
+                                .chatRoomId(roomId)
+                                .messageSeq(null)
+                                .senderId(senderId)
+                                .senderNickname(nickname)
+                                .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                                .content(filteredContent)
+                                .ticketId(null)
+                                .createdAt(null)
+                                .ticketTrigger(true)
+                                .unreadCount(null)
+                                .isRead(null)
+                                .profanityDetected(profanityDetected)
+                                .files(new ArrayList<>())
+                                .build();
+                        
+                        messagingTemplate.convertAndSend("/topic/chat/" + roomId, triggerDto);
+                        return;
+                    }
+                    
+                    // AI 처리 완료: 메시지 저장 및 브로드캐스트
+                    ChatRoom room = chatRoomRepository.findById(roomId)
+                            .orElse(null);
+                    
+                    if (room == null) {
+                        log.warn("[Chat] 채팅방을 찾을 수 없음 | roomId={}", roomId);
+                        return;
+                    }
+                    
+                    Long maxSeq = chatMessageRepository.findMaxMessageSeqByChatRoomId(roomId);
+                    Long newSeq = (maxSeq != null ? maxSeq : 0L) + 1;
+                    
+                    ChatMessage message = ChatMessage.builder()
+                            .chatRoom(room)
+                            .messageSeq(newSeq)
+                            .senderId(senderId)
+                            .messageType(createDTO.getMessageType() != null ? createDTO.getMessageType() : ChatMessageType.TEXT)
+                            .content(filteredContent) // ✅ AI 정제된 내용만 저장
+                            .ticketId(createDTO.getTicketId())
+                            .build();
+                    
+                    message = chatMessageRepository.save(message);
+                    room.updateLastMessage(newSeq, filteredContent);
+                    
+                    // 파일 처리
+                    List<TicketFileDTO> fileDTOs = new ArrayList<>();
+                    if (files != null && !files.isEmpty()) {
+                        // DIRECT 방인 경우 상대방 찾기 (receiver 설정용)
+                        String receiver = null;
+                        if (room.getRoomType() == ChatRoomType.DIRECT) {
+                            List<ChatParticipant> participants = chatParticipantRepository.findByChatRoomIdAndStatus(roomId, ChatStatus.ACTIVE);
+                            receiver = participants.stream()
+                                    .map(ChatParticipant::getUserId)
+                                    .filter(id -> !id.equals(senderId))
+                                    .findFirst()
+                                    .orElse(null);
+                        }
+                        
+                        for (int i = 0; i < files.size(); i++) {
+                            MultipartFile file = files.get(i);
+                            if (file.isEmpty()) continue;
+                            
+                            try {
+                                // 물리 파일 저장
+                                String savedFileName = fileUtil.saveFile(file);
+                                log.info("[Chat] 파일 물리 저장 완료: {}", savedFileName);
+                                
+                                // ChatFile 엔티티 생성 및 저장
+                                ChatFile chatFile = ChatFile.builder()
+                                        .uuid(savedFileName)
+                                        .fileName(file.getOriginalFilename())
+                                        .fileSize(file.getSize())
+                                        .ord(i)
+                                        .writer(senderId)
+                                        .receiver(receiver)
+                                        .chatRoom(room)
+                                        .messageSeq(newSeq)
+                                        .build();
+                                
+                                chatFileRepository.save(chatFile);
+                                log.info("[Chat] 파일 DB 기록 완료: {}", i);
+                                
+                                // DTO 변환
+                                fileDTOs.add(chatFileToTicketFileDTO(chatFile));
+                            } catch (Exception e) {
+                                log.error("[Chat] 파일 저장 실패: {}", file.getOriginalFilename(), e);
+                            }
+                        }
+                    }
+                    
+                    ChatParticipant senderParticipant = chatParticipantRepository
+                            .findByChatRoomIdAndUserId(roomId, senderId)
+                            .orElse(null);
+                    
+                    if (senderParticipant != null) {
+                        senderParticipant.markRead(newSeq);
+                        log.info("[Chat] 발신자 자동 읽음 처리 | roomId={} | senderId={} | messageSeq={}",
+                                roomId, senderId, newSeq);
+                    }
+                    
+                    // unreadCount/isRead 계산용 참여자 맵
+                    List<ChatParticipant> participants = chatParticipantRepository
+                            .findByChatRoomIdAndStatus(roomId, ChatStatus.ACTIVE);
+                    Map<String, Long> lastReadSeqMap = participants.stream()
+                            .collect(Collectors.toMap(
+                                    ChatParticipant::getUserId,
+                                    ChatParticipant::getLastReadSeq,
+                                    (a, b) -> a
+                            ));
+                    
+                    ChatMessageDTO dto = toChatMessageDTOOptimized(message, senderId, room, lastReadSeqMap);
+                    dto.setTicketTrigger(false);
+                    dto.setProfanityDetected(profanityDetected);
+                    dto.setFiles(fileDTOs);
+                    
+                    long saveTime = System.currentTimeMillis();
+                    log.info("[Chat] AI 처리 완료 - 메시지 저장 및 브로드캐스트 (파일 포함) | roomId={} | messageSeq={} | totalElapsed={}ms", 
+                            roomId, newSeq, (saveTime - processStartTime));
+                    
+                    // ✅ AI 처리 완료 후에만 브로드캐스트 (정제된 메시지만 전송)
+                    messagingTemplate.convertAndSend("/topic/chat/" + roomId, dto);
+                    
+                } catch (Exception e) {
+                    long errorTime = System.currentTimeMillis();
+                    log.error("[Chat] AI 처리 후 메시지 저장 실패 (파일 포함) | roomId={} | error={} | elapsed={}ms", 
+                            roomId, e.getMessage(), (errorTime - processStartTime), e);
+                    
+                    // 에러 발생 시 발신자에게만 에러 알림
+                    String nickname = memberRepository.findById(senderId)
+                            .map(m -> m.getNickname())
+                            .orElse(senderId);
+                    
+                    ChatMessageDTO errorDto = ChatMessageDTO.builder()
+                            .id(null)
+                            .chatRoomId(roomId)
+                            .messageSeq(null)
+                            .senderId(senderId)
+                            .senderNickname(nickname)
+                            .messageType(ChatMessageType.SYSTEM)
+                            .content("메시지 처리 중 오류가 발생했습니다.")
+                            .ticketId(null)
+                            .createdAt(null)
+                            .ticketTrigger(false)
+                            .unreadCount(null)
+                            .isRead(null)
+                            .profanityDetected(false)
+                            .files(new ArrayList<>())
+                            .build();
+                    
+                    messagingTemplate.convertAndSend("/topic/chat/" + roomId, errorDto);
+                }
+            },
+            // 에러 콜백
+            error -> {
+                String errorThreadId = Thread.currentThread().getName();
+                long errorTime = System.currentTimeMillis();
+                
+                log.error("[Chat] AI 처리 에러 콜백 (파일 포함) | roomId={} | errorThread={} | processThread={} | errorTime={} | elapsed={}ms | error={}", 
+                        roomId, errorThreadId, processThreadId, errorTime, (errorTime - processStartTime), error.getMessage());
+                
+                // 에러 발생 시 원문을 저장하지 않고 에러 메시지만 전송
+                String nickname = memberRepository.findById(senderId)
+                        .map(m -> m.getNickname())
+                        .orElse(senderId);
+                
+                ChatMessageDTO errorDto = ChatMessageDTO.builder()
+                        .id(null)
+                        .chatRoomId(roomId)
+                        .messageSeq(null)
+                        .senderId(senderId)
+                        .senderNickname(nickname)
+                        .messageType(ChatMessageType.SYSTEM)
+                        .content("메시지 처리 중 오류가 발생했습니다.")
+                        .ticketId(null)
+                        .createdAt(null)
+                        .ticketTrigger(false)
+                        .unreadCount(null)
+                        .isRead(null)
+                        .profanityDetected(false)
+                        .files(new ArrayList<>())
+                        .build();
+                
+                messagingTemplate.convertAndSend("/topic/chat/" + roomId, errorDto);
+            }
+        );
     }
     
     @Override

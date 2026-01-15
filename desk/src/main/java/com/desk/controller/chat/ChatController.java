@@ -152,8 +152,11 @@ public class ChatController {
                 roomId, userId, createDTO.getMessageType());
         
         ChatMessageDTO message = chatMessageService.sendMessage(roomId, createDTO, userId);
-        // ✅ REST 전송이어도 구독자에게 브로드캐스트(첨부 전송/WS 불안정 대비)
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
+        // AI 처리 중이 아닌 경우에만 브로드캐스트
+        // (AI 처리 중인 경우는 processAiAndSaveMessage에서 브로드캐스트)
+        if (message.getAiProcessing() == null || !message.getAiProcessing()) {
+            messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
+        }
         return ResponseEntity.ok(message);
     }
 
@@ -176,7 +179,11 @@ public class ChatController {
         log.info("[Chat] 메시지+파일 전송 | roomId={} | senderId={} | fileCount={}", roomId, userId, safeFiles.size());
 
         ChatMessageDTO message = chatMessageService.sendMessageWithFiles(roomId, createDTO, safeFiles, userId);
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
+        // AI 처리 중이 아닌 경우에만 브로드캐스트
+        // (AI 처리 중인 경우는 processAiAndSaveMessageWithFiles에서 브로드캐스트)
+        if (message.getAiProcessing() == null || !message.getAiProcessing()) {
+            messagingTemplate.convertAndSend("/topic/chat/" + roomId, message);
+        }
         return ResponseEntity.ok(message);
     }
     

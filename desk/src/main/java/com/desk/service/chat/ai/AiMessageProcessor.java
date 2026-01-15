@@ -6,6 +6,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.function.Consumer;
 
 /**
  * AI 메시지 처리 컴포넌트
@@ -86,6 +87,73 @@ public class AiMessageProcessor {
             // 에러 발생 시 원문 반환
             return new ProcessResult(originalMessage, false);
         }
+    }
+    
+    /**
+     * AI 메시지 처리 (비동기)
+     * 
+     * @param originalMessage 원문 메시지
+     * @param frontendAiEnabled 프론트엔드에서 전달한 AI 사용 여부
+     * @param onComplete 완료 시 콜백 (ProcessResult 전달)
+     * @param onError 에러 시 콜백 (Exception 전달)
+     */
+    public void processMessageAsync(
+            String originalMessage, 
+            Boolean frontendAiEnabled,
+            Consumer<ProcessResult> onComplete,
+            Consumer<Exception> onError) {
+        
+        // 서버 설정이 false이면 AI 기능 사용 안 함
+        if (!ollamaConfig.isAiMessageEnabled()) {
+            log.debug("[AI] 서버 설정으로 인해 AI 기능 비활성화");
+            onComplete.accept(new ProcessResult(originalMessage, false));
+            return;
+        }
+        
+        // 프론트엔드 요청이 false이면 AI 기능 사용 안 함
+        if (frontendAiEnabled == null || !frontendAiEnabled) {
+            log.debug("[AI] 프론트엔드 요청으로 인해 AI 기능 비활성화");
+            onComplete.accept(new ProcessResult(originalMessage, false));
+            return;
+        }
+        
+        // 원문 메시지가 없으면 그대로 반환
+        if (originalMessage == null || originalMessage.trim().isEmpty()) {
+            onComplete.accept(new ProcessResult(originalMessage, false));
+            return;
+        }
+        
+        String startThreadId = Thread.currentThread().getName();
+        long startTime = System.currentTimeMillis();
+        
+        log.info("[AI] 비동기 메시지 처리 시작 | thread={} | startTime={} | message={}", 
+                startThreadId, startTime,
+                originalMessage.length() > 50 ? originalMessage.substring(0, 50) + "..." : originalMessage);
+        
+        // 비동기로 AI 처리 실행
+        ollamaClient.filterMessage(originalMessage)
+            .subscribe(
+                result -> {
+                    String callbackThreadId = Thread.currentThread().getName();
+                    long endTime = System.currentTimeMillis();
+                    long duration = endTime - startTime;
+                    
+                    log.info("[AI] 비동기 메시지 처리 완료 | callbackThread={} | startThread={} | duration={}ms | ticketTrigger={}", 
+                            callbackThreadId, startThreadId, duration, result.isShouldCreateTicket());
+                    
+                    onComplete.accept(new ProcessResult(result.getFilteredMessage(), result.isShouldCreateTicket()));
+                },
+                error -> {
+                    String errorThreadId = Thread.currentThread().getName();
+                    long endTime = System.currentTimeMillis();
+                    long duration = endTime - startTime;
+                    
+                    log.error("[AI] 비동기 메시지 처리 실패 | errorThread={} | startThread={} | duration={}ms | error={}", 
+                            errorThreadId, startThreadId, duration, error.getMessage());
+                    // 에러 발생 시 원문 반환
+                    onComplete.accept(new ProcessResult(originalMessage, false));
+                }
+            );
     }
 }
 
