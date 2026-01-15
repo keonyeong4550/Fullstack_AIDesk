@@ -81,6 +81,7 @@ const AIAssistantModal = ({ onClose }) => {
   const [connected, setConnected] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiProcessingStatus, setAiProcessingStatus] = useState(""); // AI 처리 중 상태 표시용
 
   // ==================== 메시지 페이징 (위로 무한스크롤) ====================
   const [msgPage, setMsgPage] = useState(1); // 1부터 시작
@@ -472,6 +473,25 @@ const AIAssistantModal = ({ onClose }) => {
           messageSeq: newMessage.messageSeq,
           files: newMessage.files || [],
         };
+
+        // ✅ "[AI 처리 중...]" 같은 메시지는 채팅 메시지로 추가하지 않고 입력칸에만 표시
+        const content = transformed.content || "";
+        const isProcessingMessage = /AI.*처리.*중|처리.*중/i.test(content);
+        
+        if (isProcessingMessage && transformed.senderId === currentUserId) {
+          // AI 처리 중 메시지는 입력칸에만 표시
+          setAiProcessingStatus(content);
+          return; // 채팅 메시지로 추가하지 않음
+        }
+
+        // ✅ 실제 메시지가 채팅에 추가될 때 처리 중 상태 초기화
+        setAiProcessingStatus((prevStatus) => {
+          // 처리 중 메시지가 아니고, 이전에 처리 중 상태가 있었다면 초기화
+          if (prevStatus && !isProcessingMessage) {
+            return "";
+          }
+          return prevStatus;
+        });
 
         setMessages((prev) => {
           if (prev.some((m) => m.id === transformed.id)) return prev;
@@ -1268,29 +1288,29 @@ const AIAssistantModal = ({ onClose }) => {
 
                 {/* 입력 영역 */}
                 <div className="chat-input-wrapper">
-                  {/* 파일 첨부 */}
-                  <label className="cursor-pointer text-xl hover:opacity-70" title="파일 첨부">
-                    📎
+                    {/* 파일 첨부 */}
+                    <label className="cursor-pointer text-xl hover:opacity-70" title="파일 첨부">
+                      📎
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const list = Array.from(e.target.files || []);
+                          if (list.length) setSelectedFiles((prev) => [...prev, ...list]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                     <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        const list = Array.from(e.target.files || []);
-                        if (list.length) setSelectedFiles((prev) => [...prev, ...list]);
-                        e.target.value = "";
-                      }}
+                      type="text"
+                      className="chat-input"
+                      placeholder={aiProcessingStatus || "메시지를 입력하세요..."}
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={!connected || showWarningModal || showForceModal}
                     />
-                  </label>
-                  <input
-                    type="text"
-                    className="chat-input"
-                    placeholder="메시지를 입력하세요..."
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={!connected || showWarningModal || showForceModal}
-                  />
                   {/* AI 토글 */}
                   <div className="relative">
                     <button
