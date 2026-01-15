@@ -17,6 +17,24 @@
 태스크플로우(TaskFlow)는 직장 내 다양한 업무 대화와 요청을 기반으로  
 AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하는 협업 서비스입니다.
 
+<img width="1536" height="418" alt="Image" src="https://github.com/user-attachments/assets/b2e0a60a-fe9f-4442-b7ea-6b8de6af1f32" />
+
+# 🧩 태스크플로우 (TaskFlow)
+
+## 📌 프로젝트 소개
+
+태스크플로우(TaskFlow)는 사내 업무 대화와 요청을 AI가 분석하여  
+업무 정리·기록·관리를 자동화하는 협업 지원 서비스입니다.  
+부정확한 소통으로 발생하는 업무 지연과 갈등을 줄이고,  
+보다 명확하고 효율적인 업무 요청 환경을 제공하는 것을 목표로 합니다.
+
+---
+
+## 📖 개요
+
+태스크플로우(TaskFlow)는 직장 내 다양한 업무 대화와 요청을 기반으로  
+AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하는 협업 서비스입니다.
+
 사용자의 자연어를 분석하여  
 업무 제목, 내용, 담당자, 기한 등의 정보를 자동으로 정리하며,  
 필수 정보가 누락된 경우 AI의 역질문을 통해 요청의 완성도를 높입니다.
@@ -178,17 +196,17 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 ---
 
 
-## 🎥 [유튜브 시연영상 링크 바로보기]
+## 🎥 [유튜브 시연영상 링크 바로보기]()
 
-## 📋 [PDF 보기 링크 바로 보기
+## 📋 [PDF 보기 링크 바로 보기]()
 
 # ERD 구조
 
-<img width="1389" height="964" alt="Image" src="https://github.com/user-attachments/assets/6d476b6d-aed0-48b7-ac3d-1c6014dc3a30" />
+![Image](https://github.com/user-attachments/assets/6d476b6d-aed0-48b7-ac3d-1c6014dc3a30)
 
 # 계층구조
 
-<img width="4585" height="2368" alt="Image" src="https://github.com/user-attachments/assets/33966a9e-9a88-49fa-b5da-0da7e751115e" />
+![Image](https://github.com/user-attachments/assets/33966a9e-9a88-49fa-b5da-0da7e751115e)
 
 
 ---
@@ -232,16 +250,16 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 <summary><b>📊 성능 테스트 상세 결과 보기</b></summary>
 
 ### Redis 성능 테스트 결과
-<img width="1045" height="414" src="https://github.com/user-attachments/assets/7eb99567-76cc-4382-9e49-b454a9ea0da8" />
+![Image](https://github.com/user-attachments/assets/7eb99567-76cc-4382-9e49-b454a9ea0da8)
 
 ### DB 성능 테스트 결과
-<img width="1050" height="356" src="https://github.com/user-attachments/assets/de202402-e44a-4173-a99a-749766338dac" />
+![Image](https://github.com/user-attachments/assets/de202402-e44a-4173-a99a-749766338dac)
 
 ### 무한 스크롤 미적용
-<img width="939" height="625" src="https://github.com/user-attachments/assets/72cfbfa1-02b9-4ec2-8590-f682a960a500" />
+![Image](https://github.com/user-attachments/assets/72cfbfa1-02b9-4ec2-8590-f682a960a500)
 
 ### 무한 스크롤 적용
-<img width="940" height="650" src="https://github.com/user-attachments/assets/bd9fa403-4791-43ab-b29f-9f1811bbcfa1" />
+![Image](https://github.com/user-attachments/assets/bd9fa403-4791-43ab-b29f-9f1811bbcfa1) 
 
 </details>
 
@@ -256,17 +274,19 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## 로그인 & 소셜로그인 & 보안
 
-![Image](https://github.com/user-attachments/assets/67619c4d-26ce-40f2-97eb-aa88f86ee708)
+![Image](https://github.com/user-attachments/assets/779a122a-3981-42c1-aa31-044e98ce431c)
+
+## 얼굴 인식 로그인(임베딩)
+
+![Image](https://github.com/user-attachments/assets/f4861a7c-4e3d-4561-83b7-82376a423483)
 
 ### [플로우차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/LogIn·SNS·Security.md)
 
-## Chat·AI & UI/UX
-### UI/UX
-![Image](https://github.com/user-attachments/assets/ce802dad-5f0e-4d38-a2e6-fd6b5ec56afe)
+## Chat·AI
 
 ### Chat·AI
 
-![Image](https://github.com/user-attachments/assets/ed3ce134-7cf9-4f44-b052-f59445278993)
+![Image](https://github.com/user-attachments/assets/bc6f03fc-8714-44bc-a1bf-52ee9576a632)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/Chat·AI·Backend.md)
 
@@ -274,7 +294,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## AI·RAG·FileSearch
 
-![Image](https://github.com/user-attachments/assets/cfcad528-97c9-466a-a13a-1cf490492d4d)
+![Image](https://github.com/user-attachments/assets/69696869-df4d-4374-b7e1-a7d84f0a8903)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/AI·RAG·FileSearch.md)
 
@@ -282,7 +302,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## 댓글, 대댓글, 수정 및 삭제 (CRUD) 및 STT(음성 to 텍스트)
 
-![Image](https://github.com/user-attachments/assets/de1be14f-5702-40cb-bf77-f36abdcda548)
+![Image](https://github.com/user-attachments/assets/5c234a7c-3ad0-4d29-9e86-939c8419231e)
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/reply·STT.md)
 
@@ -291,10 +311,12 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ## 회의록 PDF 자동변환
 
-![Image](https://github.com/user-attachments/assets/eca48042-9d4b-4ea1-898d-24375c3a02d5)
+![Image](https://github.com/user-attachments/assets/68285980-aed3-489c-86ef-abda8ad4663a)
 
 
 ### [플로우 차트 및 트러블 슈팅 내역서](https://github.com/01nJun/Fullstack_AIDesk/blob/main/readMe/meetingPDF.md)
+
+
 
 
 <br>
