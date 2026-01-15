@@ -13,6 +13,8 @@
 
 ### CHAT 1:1 대화 & 그룹대화
 ![Image](https://github.com/user-attachments/assets/e9e9493c-8a58-4b9f-a580-6a52070056d6)
+### 티켓 목록
+![Image](https://github.com/user-attachments/assets/9a6275a8-f951-46a4-9c6c-507ba0c8659c)
 
 ### 티켓 단건 READ
 ![Image](https://github.com/user-attachments/assets/5318c07a-4723-424e-ad56-da50ac366185)
