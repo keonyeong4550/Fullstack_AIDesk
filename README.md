@@ -251,7 +251,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 ## 구현 기능
 
 ### 반응형
-![Image](https://github.com/user-attachments/assets/6e8811fa-6965-4fb5-9da9-aa9102d9ab15)
+![Image](https://github.com/user-attachments/assets/536abb1c-45e5-4cc7-929a-ebf7c953193f)
 
 
 ## 로그인 & 소셜로그인 & 보안
