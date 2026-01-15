@@ -184,7 +184,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 # ERD 구조
 
-![Image](https://github.com/user-attachments/assets/6d476b6d-aed0-48b7-ac3d-1c6014dc3a30)
+<img width="1389" height="964" alt="Image" src="https://github.com/user-attachments/assets/ef31f1f9-6f57-418e-983b-b78f06e0c516" />
 
 # 계층구조
 
