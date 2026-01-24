@@ -177,7 +177,7 @@ AI가 핵심 정보를 추출해 업무 요청 초안을 자동으로 생성하�
 
 ---
 
-### <img width="30" height="30" alt="jenkins_icon-cutout" src="https://github.com/user-attachments/assets/37235621-0f9e-4d3b-90a0-f7a87a798ff4" /> Deploy 
+### <img width="30" height="30" alt="jenkins_icon-cutout" src="https://github.com/user-attachments/assets/37235621-0f9e-4d3b-90a0-f7a87a798ff4" /> Deployment 
  - AWS deploy
  - NGINX deploy
  - JenKins CI/CD, Auto Deploy
